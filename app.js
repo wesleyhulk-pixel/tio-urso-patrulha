@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// Para trocar o personagem depois, substitua o GLB e, se necessário,
-// ajuste MODEL_FACE_OFFSET para corrigir a direção do rosto.
+// GLB do Tio Urso com Walking, Running e Triple_Combo_Attack. Versão 0.4.
+// Para trocar o personagem depois, altere somente o arquivo GLB e confira o eixo de orientação.
 const CHARACTER_FILE = './tio-urso.glb';
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
@@ -31,7 +31,13 @@ const miniCtx = mini.getContext('2d');
 let animationTime = 0;
 let modelBaseY = 0;
 let walkBlend = 0;
+let animationMixer = null;
+let idleAnim = null, walkAnim = null, runAnim = null, comboAnim = null;
+let comboActive = false, comboBlend = 0, tonfaAttachedToHand = false;
+let runningBlend = 0;
+let hasRiggedAnimations = false;
 let actionElapsed = 999;
+const COMBO_PLAYBACK_RATE = 1.8;
 let equipped = 'punhos';
 let tonfaModel = null, actionEffect = null;
 let animVars = {
@@ -39,8 +45,8 @@ let animVars = {
 };
 const velocitySmooth = new THREE.Vector3();
 const GROUND_Y = .041;
-const CAM_DISTANCE = 3.55;
-const CAM_HEIGHT = 2.63;
+const CAM_DISTANCE = 2.65;
+const CAM_HEIGHT = 2.24;
 
 
 try {
@@ -177,6 +183,78 @@ function installProceduralGait(model){
     node.material=mat;
   });
 }
+
+// Aproveita o rig e as animações exportadas pelo Meshy. Sem deformação por shader:
+// as transformações das articulações são interpretadas pelo Three.js AnimationMixer.
+function installRiggedAnimations(gltf){
+  const walkingClip=gltf.animations.find(a => /walk/i.test(a.name));
+  const runningClip=gltf.animations.find(a => /run/i.test(a.name));
+  const comboClip=gltf.animations.find(a => /triple.*combo.*attack|combo.*attack/i.test(a.name));
+  if(!walkingClip || !runningClip) return false;
+  try {
+    // Repouso criado a partir da pose neutra do próprio esqueleto.
+    // Assim, o modelo não fica parado com uma perna suspensa.
+    const idleTracks=[];
+    for (const track of walkingClip.tracks) {
+      const dot=track.name.lastIndexOf('.');
+      if(dot<0) continue;
+      const nodeName=track.name.slice(0,dot);
+      const path=track.name.slice(dot+1);
+      const node=characterModel.getObjectByName(nodeName);
+      const value=node?.[path];
+      if(!value || typeof value.toArray!=='function')continue;
+      const rest=value.toArray();
+      const vals=[...rest,...rest];
+      if(path==='quaternion') idleTracks.push(new THREE.QuaternionKeyframeTrack(track.name,[0,1],vals));
+      else if(path==='position' || path==='scale') idleTracks.push(new THREE.VectorKeyframeTrack(track.name,[0,1],vals));
+    }
+    if(idleTracks.length<30)console.warn('O repouso pode estar incompleto:',idleTracks.length);
+    const idleClip=new THREE.AnimationClip('Parado',1,idleTracks);
+    animationMixer=new THREE.AnimationMixer(characterModel);
+    idleAnim=animationMixer.clipAction(idleClip);
+    walkAnim=animationMixer.clipAction(walkingClip);
+    runAnim=animationMixer.clipAction(runningClip);
+    if(comboClip){
+      // A animação original avança o quadril ~1,3 m. Não duplicamos
+      // esse deslocamento: quem movimenta o jogador é o controle do jogo.
+      const gameCombo=comboClip.clone();
+      const hips=characterModel.getObjectByName('mixamorig:Hips');
+      for(const track of gameCombo.tracks){
+        if(track.name==='mixamorig:Hips.position' && track.values?.length){
+          for(let k=0;k<track.values.length;k+=3){
+            track.values[k]=hips?.position.x ?? 0;
+            track.values[k+2]=hips?.position.z ?? 0;
+          }
+        }
+      }
+      comboAnim=animationMixer.clipAction(gameCombo);
+      comboAnim.setLoop(THREE.LoopOnce,1);
+      comboAnim.clampWhenFinished=true;
+      comboAnim.enabled=true;
+      comboAnim.setEffectiveWeight(0);
+      comboAnim.setEffectiveTimeScale(COMBO_PLAYBACK_RATE);
+      animationMixer.addEventListener('finished',e=>{
+        if(e.action===comboAnim)comboActive=false;
+      });
+    }
+    for(const action of [idleAnim,walkAnim,runAnim]){
+      action.setLoop(THREE.LoopRepeat,Infinity);
+      action.enabled=true;
+      action.play();
+    }
+    idleAnim.setEffectiveWeight(1);
+    walkAnim.setEffectiveWeight(0);
+    runAnim.setEffectiveWeight(0);
+    hasRiggedAnimations=true;
+    console.info('GLB animado:',gltf.animations.map(a=>a.name),'bones/rest tracks:',idleTracks.length,'combo:',Boolean(comboAnim));
+    return true;
+  } catch(e){
+    console.error('Falha ao configurar animações rigadas:',e);
+    animationMixer=null;idleAnim=null;walkAnim=null;runAnim=null;comboAnim=null;
+    return false;
+  }
+}
+
 function createGroundShadow(){
   const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
   const c=canvas.getContext('2d');const gradient=c.createRadialGradient(64,64,4,64,64,62);
@@ -196,6 +274,18 @@ function makeTonfa(){
   const grip=new THREE.Mesh(new THREE.CylinderGeometry(.043,.043,.30,10),mat);grip.rotation.z=Math.PI/2;grip.position.set(-.12,.02,0);weapon.add(grip);
   weapon.position.set(.37,.64,.08);weapon.visible=false;player.add(weapon);tonfaModel=weapon;
 }
+// Vincula o bastão à mão DIREITA do esqueleto para acompanhar o golpe.
+// A posição exata poderá ser afinada após o teste no celular.
+function attachTonfaToHand(){
+  const hand=characterModel?.getObjectByName('mixamorig:RightHand');
+  if(!hand || !tonfaModel)return false;
+  hand.add(tonfaModel);
+  tonfaModel.position.set(0,.035,-.025);
+  tonfaModel.rotation.set(0,0,.05);
+  tonfaModel.scale.setScalar(.70);
+  tonfaAttachedToHand=true;
+  return true;
+}
 function selectEquipment(item){
   if(item==='tonfa'&&talked.size<3){notify('Complete a missão comunitária para receber a tonfa.');return;}
   if(item==='arma'){notify('Arma de fogo: aguardando futura missão de habilitação.');return;}
@@ -208,10 +298,20 @@ function selectEquipment(item){
 }
 function doAction(){
   if(!started)return;
-  if(actionElapsed<.48)return;
+  if(comboActive || comboBlend>.2 || actionElapsed<.48)return;
   actionElapsed=0;
-  // Não direcionamos golpes aos NPCs de contato comunitário.
-  notify(equipped==='tonfa'?'Treinamento: golpe de tonfa simulado.':'Treinamento: soco simulado.',1300);
+  // Somente demonstração: não aplicamos dano aos cidadãos das missões.
+  if(comboAnim){
+    comboActive=true;
+    comboAnim.reset();
+    comboAnim.setLoop(THREE.LoopOnce,1);
+    comboAnim.clampWhenFinished=true;
+    comboAnim.setEffectiveTimeScale(COMBO_PLAYBACK_RATE);
+    comboAnim.play();
+    notify(equipped==='tonfa'?'Treinamento: sequência de golpes com tonfa.':'Treinamento: combo de golpes desarmados.',1600);
+  }else{
+    notify(equipped==='tonfa'?'Golpe de tonfa simulado.':'Soco simulado.',1300);
+  }
 }
 
 function buildScene(){
@@ -268,9 +368,13 @@ function buildScene(){
       characterModel.position.set(-((bounds.min.x+bounds.max.x)/2)*uniformScale,-bounds.min.y*uniformScale,-((bounds.min.z+bounds.max.z)/2)*uniformScale);
       characterModel.rotation.y=MODEL_FACE_OFFSET;
       modelBaseY = characterModel.position.y;
-      installProceduralGait(characterModel);
       player.add(characterModel);
-      console.info('Tio Urso GLB carregado corretamente');
+      if(!installRiggedAnimations(gltf)){
+        // Reserva para um modelo antigo sem ossos.
+        installProceduralGait(characterModel);
+      }
+      attachTonfaToHand();
+      console.info('Tio Urso GLB carregado corretamente, rig:',hasRiggedAnimations);
       resolve(true);
     },undefined,error=>{
       console.warn('Erro ao carregar GLB; exibe personagem reserva',error);
@@ -309,7 +413,7 @@ function update(dt){
   forward.set(-Math.sin(camYaw),0,-Math.cos(camYaw));
   right.set(-forward.z,0,forward.x);
   motion.copy(forward).multiplyScalar(-vy).addScaledVector(right,vx);
-  const trying=motion.lengthSq()>.008;
+  const trying=motion.lengthSq()>.008 && !comboActive && comboBlend<.25;
   const running=(runHeld||pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight'))&&trying;
   const desired=new THREE.Vector3();
   if(trying){desired.copy(motion).normalize().multiplyScalar(running?RUN_SPEED:PLAYER_SPEED);}
@@ -330,29 +434,53 @@ function update(dt){
   }
   walkBlend+=(Math.min(1,speed/PLAYER_SPEED)-walkBlend)*(1-Math.exp(-dt*9));
   animationTime+=dt*(2.3+speed*1.85);
-  animVars.phase.value=animationTime;
-  animVars.amount.value=walkBlend;
+  if(animationMixer){
+    runningBlend+=(Number(running)-runningBlend)*(1-Math.exp(-dt*7));
+    const movingWeight=THREE.MathUtils.clamp(speed/PLAYER_SPEED,0,1);
+    // Blend in/out do combo para não saltar abruptamente entre poses.
+    const blendTarget=comboActive?1:0;
+    comboBlend+=(blendTarget-comboBlend)*(1-Math.exp(-dt*(comboActive?15:11)));
+    if(!comboActive && comboBlend<.005){
+      comboBlend=0;
+      if(comboAnim?.isRunning())comboAnim.stop();
+    }
+    const loco=1-comboBlend;
+    idleAnim.setEffectiveWeight((1-movingWeight)*loco);
+    walkAnim.setEffectiveWeight(movingWeight*(1-runningBlend)*loco);
+    runAnim.setEffectiveWeight(movingWeight*runningBlend*loco);
+    if(comboAnim)comboAnim.setEffectiveWeight(comboBlend);
+    walkAnim.timeScale=THREE.MathUtils.clamp(speed/PLAYER_SPEED,.6,1.3);
+    runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
+    animationMixer.update(dt);
+  } else {
+    animVars.phase.value=animationTime;
+    animVars.amount.value=walkBlend;
+  }
   actionElapsed+=dt;
   const pulse=actionElapsed<.32?Math.sin(Math.PI*actionElapsed/.32):0;
-  animVars.action.value=pulse;
+  // Nas animações importadas, o próprio corpo realiza o ataque.
+  const fxPulse=comboAnim&&comboActive?Math.max(.20,Math.abs(Math.sin(comboAnim.time*7))):pulse;
+  if(!animationMixer) animVars.action.value=pulse;
   if(actionEffect){
-    actionEffect.visible=pulse>.015;
-    actionEffect.material.opacity=pulse*.65;
-    actionEffect.scale.setScalar(1+.85*(1-pulse));
+    actionEffect.visible=(!comboAnim && pulse>.015) || (comboActive && fxPulse>.4);
+    actionEffect.material.opacity=comboActive?fxPulse*.22:pulse*.65;
+    actionEffect.scale.setScalar(1+.85*(1-fxPulse));
     actionEffect.position.set(.28,1.11,.83);
   }
   if(tonfaModel){
     tonfaModel.visible=equipped==='tonfa';
-    tonfaModel.rotation.x=-pulse*.65;
-    tonfaModel.rotation.z=Math.sin(animationTime)*walkBlend*.08;
+    if(!tonfaAttachedToHand){
+      tonfaModel.rotation.x=-pulse*.65;
+      tonfaModel.rotation.z=Math.sin(animationTime)*walkBlend*.08;
+    }
   }
   // O modelo permanece assentado no piso, sem salto artificial.
   player.position.y=GROUND_Y;
-  if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z= Math.sin(animationTime)*walkBlend*.018;}
+  if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}
   const behindX=Math.sin(camYaw),behindZ=Math.cos(camYaw);
   camPosWanted.set(player.position.x+behindX*CAM_DISTANCE,player.position.y+CAM_HEIGHT,player.position.z+behindZ*CAM_DISTANCE);
   camera.position.lerp(camPosWanted,1-Math.exp(-dt*9));
-  targetPos.set(player.position.x,1.40,player.position.z);
+  targetPos.set(player.position.x,1.32,player.position.z);
   camera.lookAt(targetPos);
   const c=nearbyCitizen();const hint=el('action-hint');
   if(c){hint.classList.add('visible');hint.textContent=talked.has(c.id)?`✓ ${c.name} já foi atendido`:`✋ FALAR com ${c.name}`;}
@@ -413,10 +541,10 @@ try{
   const loaded=await buildScene();
   ready=true;introButton.disabled=false;
   introButton.textContent='INICIAR PATRULHAMENTO';
-  el('load-info').textContent=loaded?'Tio Urso 3D carregado!':'Modelo não carregou; modo de teste reserva disponível.';
+  el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';
   introButton.addEventListener('click',async()=>{
     if(!ready)return;
-    started=true;el('intro').style.display='none';notify('Missão 01: converse com 3 cidadãos. O botão AÇÃO executa soco de treinamento.',3600);
+    started=true;el('intro').style.display='none';notify('Missão 01: converse com 3 cidadãos. Use AÇÃO para testar o combo de golpes.',3600);
     try {if(screen.orientation?.lock)await screen.orientation.lock('landscape');} catch(e) { /* mobile browsers may disallow */ }
   });
   loop();

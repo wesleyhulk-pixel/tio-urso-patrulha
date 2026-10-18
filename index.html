@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Protótipo 0.2</title>
-  <link rel="stylesheet" href="./style.css" />
+  <title>Tio Urso: Patrulha | Protótipo 0.4</title>
+  <link rel="stylesheet" href="./style.css?v=04" />
   <script type="importmap">
     {
       "imports": {
@@ -21,7 +21,7 @@
     <div id="view"></div>
 
     <header id="top-ui">
-      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.2 • CENÁRIO DE TESTE</small></div></div>
+      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.4 • CENÁRIO DE TESTE</small></div></div>
       <div class="score"><span id="level">NÍVEL 1</span><div class="xpbar"><span id="xp-fill"></span></div><span id="xp-label">0 XP</span></div>
       <button id="full" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button>
     </header>
@@ -56,13 +56,13 @@
         <div class="intro-divider"></div>
         <small id="load-info">Preparando o cenário 3D...</small>
         <button id="start" type="button" disabled>CARREGANDO...</button>
-        <p class="micro">Câmera próxima • Animação procedural • Botão AÇÃO • Cidade de teste<br/>As ruas reais de Arapongas serão adicionadas depois.</p>
+        <p class="micro">Caminhada, corrida e combo de golpes com esqueleto • Cidade de teste<br/>As ruas reais de Arapongas serão adicionadas depois.</p>
       </div>
     </div>
 
     <div id="rotate-hint"><div><span>📱 ↻</span><b>Gire o celular para horizontal</b><p>Este jogo foi preparado para o modo paisagem.</p><button id="ignore-rotate">Continuar assim mesmo</button></div></div>
     <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
   </main>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=04"></script>
 </body>
 </html>

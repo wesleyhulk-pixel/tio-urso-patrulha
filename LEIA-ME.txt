@@ -1,37 +1,26 @@
-TIO URSO: PATRULHA — VERSÃO 0.2 (CELULAR)
-==========================================
-CINCO ARQUIVOS NA RAIZ DO MESMO REPOSITÓRIO:
-index.html
-app.js
-style.css
-tio-urso.glb
-LEIA-ME.txt
+TIO URSO: PATRULHA — PROTÓTIPO v0.4
 
-O QUE MUDOU
-- Câmera em 3ª pessoa MAIS PRÓXIMA e mais baixa (atrás das costas)
-- Modelo mantido no solo e sombra de contato suave
-- Movimentação acelerando e freando gradualmente
-- Oscilação PROCEDURAL dos braços/pernas por shader (não é rigging real)
-- Botão AÇÃO separado de FALAR (soco de treino)
-- Botão EQUIP. para trocar entre punhos e tonfa
-- Tonfa disponível após conversar com três cidadãos
-- Arma de fogo fica bloqueada até uma futura missão de habilitação
-- O progresso da Missão 01 salva com a mesma chave de v0.1
+NOVO
+- Usa novo GLB enviado pelo usuário, com animações Walking, Running e Triple_Combo_Attack.
+- Botão AÇÃO executa um combo de três golpes (movimento de treinamento).
+- Tonfa acompanha a mão direita, quando equipada, após concluir missão comunitária.
+- Combo é reproduzido uma vez por toque, com transição suave e bloqueio temporário de movimentação.
+- Movimento horizontal excessivo do quadril no combo foi neutralizado para não deslizar no mapa.
+- Punhos e tonfa disponíveis conforme o progresso da missão 01. Arma de fogo continua bloqueada.
 
-COMO ATUALIZAR NO GITHUB PELO CELULAR
-1. Extraia o ZIP; NÃO envie o ZIP em vez dos arquivos.
-2. Abra o repositório já existente: wesleyhulk-pixel/tio-urso-patrulha
-3. Clique Add file > Upload files.
-4. Selecione os CINCO arquivos extraídos.
-5. Se o GitHub pedir para substituir arquivos existentes, confirme.
-6. Faça o commit das alterações na branch main.
-7. Acesse https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=02
+LIMITAÇÕES
+- Triple_Combo_Attack é o nome de uma animação genérica de combo: sua execução com tonfa deve ser avaliada visualmente.
+- O modelo de bastão é uma representação 3D simplificada gerada pelo próprio código. Pode precisar de ajuste de encaixe na mão.
+- Não existe dano aos cidadãos da primeira missão.
+- O mapa ainda é um cenário fictício de teste.
 
-ATENÇÃO
-- A imagem 3D original do personagem segue sem esqueleto. O balanço
-  procedural é uma demonstração técnica, NÃO é caminhada com rig real.
-- A rua continua fictícia, representando SOMENTE um cenário de teste.
-- Não há socos contra cidadãos, dano ou arma funcional nessa versão.
-- O carregamento usa Three.js por CDN, então precisa de internet.
-- Se o navegador mostrar a versão anterior, atualize ou use a URL com ?v=02.
-- Trilha de versões: v0.1 -> v0.2; preserve o repositório e progresso.
+ATUALIZAÇÃO PELO CELULAR
+1. Extraia este ZIP: são cinco arquivos sem pastas internas.
+2. Abra github.com/wesleyhulk-pixel/tio-urso-patrulha
+3. Add file → Upload files; envie os cinco arquivos substituindo os da v0.3.
+4. Commit changes; espere a publicação do GitHub Pages.
+5. Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=04
+6. Guarde uma cópia do GLB original e do ZIP da v0.3.
+
+CONTEÚDO:
+index.html, app.js, style.css, tio-urso.glb, LEIA-ME.txt
