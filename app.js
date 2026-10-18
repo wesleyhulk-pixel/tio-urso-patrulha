@@ -5,8 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // ajuste MODEL_FACE_OFFSET para corrigir a direção do rosto.
 const CHARACTER_FILE = './tio-urso.glb';
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
-const PLAYER_SPEED = 3.2;
-const RUN_SPEED = 6.2;
+const PLAYER_SPEED = 2.9;
+const RUN_SPEED = 5.4;
 const LIMIT = 48;
 
 const el = id => document.getElementById(id);
@@ -30,6 +30,18 @@ const mini = el('minimap');
 const miniCtx = mini.getContext('2d');
 let animationTime = 0;
 let modelBaseY = 0;
+let walkBlend = 0;
+let actionElapsed = 999;
+let equipped = 'punhos';
+let tonfaModel = null, actionEffect = null;
+let animVars = {
+  phase: {value:0}, amount: {value:0}, action: {value:0}
+};
+const velocitySmooth = new THREE.Vector3();
+const GROUND_Y = .041;
+const CAM_DISTANCE = 3.55;
+const CAM_HEIGHT = 2.63;
+
 
 try {
   const saved = JSON.parse(localStorage.getItem('tio-urso-patrulha-demo-v01') || '{}');
@@ -47,6 +59,9 @@ function updateHud(){
   el('mission-count').textContent = `${Math.min(3,talked.size)}/3`;
   el('mission-status').textContent = talked.size >= 3 ? 'Concluída ✓' : 'Em andamento';
   el('interact').querySelector('small').textContent = 'FALAR';
+  el('tonfa-state').textContent = talked.size >= 3 ? '✓ Liberado após Missão 01' : '🔒 Conclua o contato comunitário';
+  el('equip-tonfa').disabled = talked.size < 3;
+  if(talked.size >= 3) el('equip-tonfa').classList.add('unlocked');
 }
 updateHud();
 
@@ -113,6 +128,92 @@ function fakeBear(){
   }
   return group;
 }
+
+// O GLB do Meshy não possui ossos. Deformação suave por VERTEX SHADER,
+// totalmente reversível. Não substitui um esqueleto/rigging profissional.
+function installProceduralGait(model){
+  model.traverse(node=>{
+    if(!node.isMesh || !node.geometry?.getAttribute('position'))return;
+    // A malha do nosso GLB é centrada em (0,0,0), com altura ~1.9 unidade.
+    const mat=node.material.clone();
+    const cacheKey='TioUrsoGait_v02';
+    mat.customProgramCacheKey=()=>cacheKey;
+    mat.onBeforeCompile=shader=>{
+      shader.uniforms.uGaitPhase=animVars.phase;
+      shader.uniforms.uGaitAmount=animVars.amount;
+      shader.uniforms.uAction=animVars.action;
+      shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
+        uniform float uGaitPhase;
+        uniform float uGaitAmount;
+        uniform float uAction;
+      `);
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+        float pSide = position.x < 0.0 ? -1.0 : 1.0;
+        float pAbsX = abs(position.x);
+        float armMask = smoothstep(0.20,0.35,pAbsX) * (1.0-smoothstep(0.26,0.46,position.y));
+        float legMask = smoothstep(0.045,0.15,pAbsX) * (1.0-smoothstep(-0.27,-0.06,position.y));
+        float oscillation = sin(uGaitPhase + (pSide>0.0 ? 0.0 : 3.14159));
+        float armSwing = oscillation*uGaitAmount*0.39;
+        // Soco: braço direito avança sem mover o corpo inteiro.
+        if(pSide>0.0)armSwing += -uAction*0.86;
+        float da = position.y - 0.29;
+        float za = position.z;
+        float ca = cos(armSwing), sa = sin(armSwing);
+        vec3 armPos = vec3(position.x, 0.29+ca*da-sa*za, sa*da+ca*za);
+        transformed = mix(transformed, armPos, armMask);
+        float legSwing = -oscillation*uGaitAmount*0.35;
+        float dl = position.y + 0.17;
+        float zl = position.z;
+        float cl = cos(legSwing),sl = sin(legSwing);
+        vec3 legPos = vec3(position.x,-0.17+cl*dl-sl*zl,sl*dl+cl*zl);
+        transformed = mix(transformed,legPos,legMask);
+        // Corrige a elevação geométrica do pé provocada pela rotação da perna.
+        transformed.y -= legMask * 0.78 * (1.0-cl);
+        // Respiração discreta no tórax; pés permanecem próximos ao piso.
+        float upper = smoothstep(0.05,0.52,position.y)*(1.0-armMask);
+        transformed.y += upper*0.004*sin(uGaitPhase*0.5);
+      `);
+    };
+    node.material=mat;
+  });
+}
+function createGroundShadow(){
+  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+  const c=canvas.getContext('2d');const gradient=c.createRadialGradient(64,64,4,64,64,62);
+  gradient.addColorStop(0,'rgba(0,0,0,0.45)');gradient.addColorStop(.45,'rgba(0,0,0,0.22)');gradient.addColorStop(1,'rgba(0,0,0,0)');
+  c.fillStyle=gradient;c.fillRect(0,0,128,128);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.45,1.05),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas),transparent:true,depthWrite:false,opacity:.85,polygonOffset:true,polygonOffsetFactor:-1}));
+  m.rotation.x=-Math.PI/2;m.position.y=-.008;
+  player.add(m);
+}
+function makeAttackEffect(){
+  const effect=new THREE.Mesh(new THREE.TorusGeometry(.26,.045,8,24),new THREE.MeshBasicMaterial({color:0xffd978,transparent:true,opacity:0,depthWrite:false}));
+  effect.visible=false;effect.position.set(.25,1.15,.85);player.add(effect);actionEffect=effect;
+}
+function makeTonfa(){
+  const weapon=new THREE.Group();const mat=new THREE.MeshStandardMaterial({color:0x242b33,roughness:.7});
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.83,10),mat);shaft.position.y=.28;weapon.add(shaft);
+  const grip=new THREE.Mesh(new THREE.CylinderGeometry(.043,.043,.30,10),mat);grip.rotation.z=Math.PI/2;grip.position.set(-.12,.02,0);weapon.add(grip);
+  weapon.position.set(.37,.64,.08);weapon.visible=false;player.add(weapon);tonfaModel=weapon;
+}
+function selectEquipment(item){
+  if(item==='tonfa'&&talked.size<3){notify('Complete a missão comunitária para receber a tonfa.');return;}
+  if(item==='arma'){notify('Arma de fogo: aguardando futura missão de habilitação.');return;}
+  equipped=item;
+  el('weapon-label').textContent=item==='tonfa'?'🥢 TONFA':'👊 PUNHOS';
+  el('action').querySelector('span').textContent=item==='tonfa'?'🥢':'👊';
+  if(tonfaModel)tonfaModel.visible=item==='tonfa';
+  el('equipment-panel').hidden=true;
+  notify(item==='tonfa'?'Tonfa equipada.':'Punhos selecionados.');
+}
+function doAction(){
+  if(!started)return;
+  if(actionElapsed<.48)return;
+  actionElapsed=0;
+  // Não direcionamos golpes aos NPCs de contato comunitário.
+  notify(equipped==='tonfa'?'Treinamento: golpe de tonfa simulado.':'Treinamento: soco simulado.',1300);
+}
+
 function buildScene(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x91c8e1);scene.fog=new THREE.Fog(0x91c8e1,34,92);
   camera=new THREE.PerspectiveCamera(64,1,.1,180);
@@ -151,10 +252,11 @@ function buildScene(){
   makeCitizen('Dona Maria',4.7,-3.5,0x52a47d,'maria');
   makeCitizen('Sr. Carlos',-4.7,3.8,0xe1ad6d,'carlos');
   makeCitizen('Ana',4.7,23.5,0x7b94cc,'ana');
-  player=new THREE.Group();player.position.copy(playerPos);scene.add(player);
+  player=new THREE.Group();player.position.copy(playerPos);player.position.y=GROUND_Y;scene.add(player);
+  createGroundShadow();makeAttackEffect();makeTonfa();
   clock=new THREE.Clock();
   onResize();window.addEventListener('resize',onResize);
-  camera.position.set(0,4.2,-20.5);
+  camera.position.set(0,CAM_HEIGHT,-13-CAM_DISTANCE);
   return new Promise(resolve=>{
     const loader=new GLTFLoader();
     loader.load(CHARACTER_FILE,gltf=>{
@@ -166,6 +268,7 @@ function buildScene(){
       characterModel.position.set(-((bounds.min.x+bounds.max.x)/2)*uniformScale,-bounds.min.y*uniformScale,-((bounds.min.z+bounds.max.z)/2)*uniformScale);
       characterModel.rotation.y=MODEL_FACE_OFFSET;
       modelBaseY = characterModel.position.y;
+      installProceduralGait(characterModel);
       player.add(characterModel);
       console.info('Tio Urso GLB carregado corretamente');
       resolve(true);
@@ -175,7 +278,7 @@ function buildScene(){
     });
   });
 }
-function onResize(){if(!renderer)return;let w=window.innerWidth,h=window.innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);}
+function onResize(){if(!renderer)return;let w=mount.clientWidth||window.innerWidth,h=mount.clientHeight||window.innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);}
 function isBlocked(x,z){
   if(Math.abs(x)>LIMIT||Math.abs(z)>LIMIT)return true;
   for(const b of obstacles)if(x>b.x1&&x<b.x2&&z>b.z1&&z<b.z2)return true;
@@ -195,7 +298,7 @@ function interact(){
   c.flag.material.map.dispose();c.citizen.remove(c.flag);
   const newFlag=labelSprite('✓ OBRIGADO!','#f8f7e9','#28543d',2,.42);newFlag.position.y=2.35;c.citizen.add(newFlag);c.flag=newFlag;
   notify(`${c.name}: Obrigado pela atenção!  +40 XP`,3200);
-  if(talked.size===3)setTimeout(()=>notify('MISSÃO CONCLUÍDA! 🏅 Patrulhamento comunitário',4200),3400);
+  if(talked.size===3)setTimeout(()=>notify('MISSÃO CONCLUÍDA! 🏅 Bastão tonfa liberado no equipamento.',4700),3100);
 }
 function update(dt){
   let vx=joyX,vy=joyY;
@@ -206,29 +309,52 @@ function update(dt){
   forward.set(-Math.sin(camYaw),0,-Math.cos(camYaw));
   right.set(-forward.z,0,forward.x);
   motion.copy(forward).multiplyScalar(-vy).addScaledVector(right,vx);
-  walking=motion.lengthSq()>.005;
+  const trying=motion.lengthSq()>.008;
+  const running=(runHeld||pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight'))&&trying;
+  const desired=new THREE.Vector3();
+  if(trying){desired.copy(motion).normalize().multiplyScalar(running?RUN_SPEED:PLAYER_SPEED);}
+  // Aceleração/desaceleração gradual: menos 'deslizamento'.
+  const alpha=1-Math.exp(-dt*(trying?12:17));
+  velocitySmooth.lerp(desired,alpha);
+  if(velocitySmooth.lengthSq()<.004)velocitySmooth.set(0,0,0);
+  const x=player.position.x+velocitySmooth.x*dt;
+  const z=player.position.z+velocitySmooth.z*dt;
+  if(!isBlocked(x,player.position.z))player.position.x=x;else velocitySmooth.x=0;
+  if(!isBlocked(player.position.x,z))player.position.z=z;else velocitySmooth.z=0;
+  const speed=velocitySmooth.length();
+  walking=speed>.12;
   if(walking){
-    motion.normalize();
-    const run=runHeld||pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight');
-    const velocity=(run?RUN_SPEED:PLAYER_SPEED)*dt;
-    const x=player.position.x+motion.x*velocity;
-    const z=player.position.z+motion.z*velocity;
-    if(!isBlocked(x,player.position.z))player.position.x=x;
-    if(!isBlocked(player.position.x,z))player.position.z=z;
-    const wantedRot=Math.atan2(motion.x,motion.z);
-    let angle=Math.atan2(Math.sin(wantedRot-player.rotation.y),Math.cos(wantedRot-player.rotation.y));
-    player.rotation.y+=angle*Math.min(1,dt*12);
-    animationTime+=dt*(run?14:9);
-    characterModel.position.y=modelBaseY+.035*Math.abs(Math.sin(animationTime));
-  }else if(characterModel){characterModel.position.y+=(modelBaseY-characterModel.position.y)*Math.min(1,dt*6);}
+    const wantedRot=Math.atan2(velocitySmooth.x,velocitySmooth.z);
+    const delta=Math.atan2(Math.sin(wantedRot-player.rotation.y),Math.cos(wantedRot-player.rotation.y));
+    player.rotation.y+=delta*(1-Math.exp(-dt*12));
+  }
+  walkBlend+=(Math.min(1,speed/PLAYER_SPEED)-walkBlend)*(1-Math.exp(-dt*9));
+  animationTime+=dt*(2.3+speed*1.85);
+  animVars.phase.value=animationTime;
+  animVars.amount.value=walkBlend;
+  actionElapsed+=dt;
+  const pulse=actionElapsed<.32?Math.sin(Math.PI*actionElapsed/.32):0;
+  animVars.action.value=pulse;
+  if(actionEffect){
+    actionEffect.visible=pulse>.015;
+    actionEffect.material.opacity=pulse*.65;
+    actionEffect.scale.setScalar(1+.85*(1-pulse));
+    actionEffect.position.set(.28,1.11,.83);
+  }
+  if(tonfaModel){
+    tonfaModel.visible=equipped==='tonfa';
+    tonfaModel.rotation.x=-pulse*.65;
+    tonfaModel.rotation.z=Math.sin(animationTime)*walkBlend*.08;
+  }
+  // O modelo permanece assentado no piso, sem salto artificial.
+  player.position.y=GROUND_Y;
+  if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z= Math.sin(animationTime)*walkBlend*.018;}
   const behindX=Math.sin(camYaw),behindZ=Math.cos(camYaw);
-  const camDist=7.6;
-  camPosWanted.set(player.position.x+behindX*camDist,player.position.y+3.8,player.position.z+behindZ*camDist);
-  camera.position.lerp(camPosWanted,Math.min(1,dt*5));
-  targetPos.set(player.position.x,1.35,player.position.z);
+  camPosWanted.set(player.position.x+behindX*CAM_DISTANCE,player.position.y+CAM_HEIGHT,player.position.z+behindZ*CAM_DISTANCE);
+  camera.position.lerp(camPosWanted,1-Math.exp(-dt*9));
+  targetPos.set(player.position.x,1.40,player.position.z);
   camera.lookAt(targetPos);
-  const c=nearbyCitizen();
-  const hint=el('action-hint');
+  const c=nearbyCitizen();const hint=el('action-hint');
   if(c){hint.classList.add('visible');hint.textContent=talked.has(c.id)?`✓ ${c.name} já foi atendido`:`✋ FALAR com ${c.name}`;}
   else hint.classList.remove('visible');
   for(const n of citizenNodes)n.flag.visible=player.position.distanceTo(n.citizen.position)<14;
@@ -263,7 +389,13 @@ function installControls(){
   el('run').addEventListener('pointerdown',e=>{runHeld=true;el('run').classList.add('pressed');el('run').setPointerCapture(e.pointerId);e.preventDefault();});
   for(const ev of ['pointerup','pointercancel','lostpointercapture'])el('run').addEventListener(ev,()=>{runHeld=false;el('run').classList.remove('pressed');});
   el('interact').addEventListener('click',interact);
-  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE'||e.code==='Space')interact();});
+  el('action').addEventListener('click',doAction);
+  el('equip').addEventListener('click',()=>{el('equipment-panel').hidden=!el('equipment-panel').hidden;});
+  el('close-equipment').addEventListener('click',()=>el('equipment-panel').hidden=true);
+  el('equip-fists').addEventListener('click',()=>selectEquipment('punhos'));
+  el('equip-tonfa').addEventListener('click',()=>selectEquipment('tonfa'));
+  el('equip-firearm').addEventListener('click',()=>selectEquipment('arma'));
+  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space')doAction();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;});
   window.addEventListener('keyup',e=>pressedKeys.delete(e.code));
   window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;joyX=0;joyY=0;});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.
@@ -284,7 +416,7 @@ try{
   el('load-info').textContent=loaded?'Tio Urso 3D carregado!':'Modelo não carregou; modo de teste reserva disponível.';
   introButton.addEventListener('click',async()=>{
     if(!ready)return;
-    started=true;el('intro').style.display='none';notify('Missão 01: converse com os cidadãos marcados no mapa.',3600);
+    started=true;el('intro').style.display='none';notify('Missão 01: converse com 3 cidadãos. O botão AÇÃO executa soco de treinamento.',3600);
     try {if(screen.orientation?.lock)await screen.orientation.lock('landscape');} catch(e) { /* mobile browsers may disallow */ }
   });
   loop();

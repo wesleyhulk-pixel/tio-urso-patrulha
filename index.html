@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Protótipo 0.1</title>
+  <title>Tio Urso: Patrulha | Protótipo 0.2</title>
   <link rel="stylesheet" href="./style.css" />
   <script type="importmap">
     {
@@ -21,7 +21,7 @@
     <div id="view"></div>
 
     <header id="top-ui">
-      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.1 • CENÁRIO DE TESTE</small></div></div>
+      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.2 • CENÁRIO DE TESTE</small></div></div>
       <div class="score"><span id="level">NÍVEL 1</span><div class="xpbar"><span id="xp-fill"></span></div><span id="xp-label">0 XP</span></div>
       <button id="full" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button>
     </header>
@@ -34,11 +34,20 @@
     <div class="touch-ui" id="touch-ui">
       <div class="joystick" id="joystick" aria-label="Controle de movimento"><div class="stick" id="stick"></div></div>
       <div class="buttons">
+        <button id="action" class="round-button action" type="button"><span>👊</span><small>AÇÃO</small></button>
         <button id="run" class="round-button run" type="button"><span>🏃</span><small>CORRER</small></button>
         <button id="interact" class="round-button interact" type="button"><span>✋</span><small>FALAR</small></button>
       </div>
     </div>
 
+    <div id="equipment-ui"><button type="button" id="equip" aria-label="Selecionar equipamento">🎒 EQUIP.</button><span id="weapon-label">👊 PUNHOS</span></div>
+    <div id="equipment-panel" class="equipment-panel" hidden>
+      <div class="equipment-head"><strong>Equipamentos</strong><button id="close-equipment" aria-label="Fechar equipamentos">✕</button></div>
+      <button id="equip-fists" class="equip-option"><span>👊 <b>Punhos</b></span><small>Disponível • Soco de treinamento</small></button>
+      <button id="equip-tonfa" class="equip-option"><span>🥢 <b>Bastão tonfa</b></span><small id="tonfa-state">🔒 Conclua o contato comunitário</small></button>
+      <button id="equip-firearm" class="equip-option" disabled><span>🎯 <b>Arma de fogo</b></span><small>🔒 Habilitação em etapa futura</small></button>
+      <p>Protótipo: as ações são demonstrações, sem dano aos cidadãos.</p>
+    </div>
     <div id="intro" class="overlay">
       <div class="intro-card">
         <span class="intro-paw">🐾</span>
@@ -47,7 +56,7 @@
         <div class="intro-divider"></div>
         <small id="load-info">Preparando o cenário 3D...</small>
         <button id="start" type="button" disabled>CARREGANDO...</button>
-        <p class="micro">Protótipo de movimentação • Cidade fictícia de testes<br/>As ruas reais de Arapongas serão adicionadas depois.</p>
+        <p class="micro">Câmera próxima • Animação procedural • Botão AÇÃO • Cidade de teste<br/>As ruas reais de Arapongas serão adicionadas depois.</p>
       </div>
     </div>
 
