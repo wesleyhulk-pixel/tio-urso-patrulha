@@ -1,28 +1,33 @@
-TIO URSO: PATRULHA — V0.6 — CORREÇÃO DA TONFA
+TIO URSO: PATRULHA — V0.7 — CINTO CORRETO + BRAÇOS EM REPOUSO
 
-NOVO
-- A tonfa equipada é anexada ao osso da mão direita do modelo GLB.
-- A busca por osso aceita nomes normalizados sem dois-pontos, como os gerados pelo GLTFLoader.
-- A tonfa guardada é ligada ao quadril/cinto (não fica flutuando na rua).
-- Quando a mão não é encontrada, a tonfa não é exibida solta; o jogo informa o problema.
-- Ação e animação Triple_Combo_Attack preservadas, com bastão seguindo a mão durante o combo.
-- Todos os controles, joystick com corrida automática, caminhada, corrida, missão 01 e XP permanecem.
-- Nenhuma arma de fogo liberada nesta versão.
+ALTERAÇÕES
+- A tonfa guardada fica no lado ESQUERDO do PRÓPRIO Tio Urso, mais alta,
+  lateralizada e levemente inclinada no suporte, sem atravessar a perna.
+- Coldre vazio provisório no lado DIREITO do cinto (pistola continua bloqueada).
+- Quando equipada, a tonfa acompanha a mão direita como na versão 0.6.
+- Ajuste sutil na curvatura dos dedos ao segurar a tonfa, usando os ossos existentes.
+- Idle relaxado: braços próximos ao corpo, respiração discreta e transições suaves.
+- Animações Walking, Running, Triple_Combo_Attack, joystick/corrida automática,
+  controles, missão e XP são mantidos.
+- Protótipo sem armas de fogo funcionais e sem dano aos cidadãos.
 
-COMO TESTAR
-1. Complete o contato com os três cidadãos (ou use seu progresso salvo).
-2. Clique EQUIP. -> Tonfa. Ela deve aparecer ligada à mão direita.
-3. Caminhe, corra e toque em AÇÃO. A tonfa deve acompanhar a mão, sem permanecer na rua.
-4. Volte em EQUIP. -> Punhos. A tonfa deve reaparecer guardada no cinto.
+PARA TESTAR
+1. Fique parado sem a tonfa: confira braços relaxados e leve respiração.
+2. Gire a câmera: a tonfa deve ficar na ESQUERDA do personagem,
+   enquanto o coldre vazio permanece à DIREITA, independentemente da vista.
+3. Equipe a tonfa: ela deve aparecer na mão direita e acompanhar o combo.
+4. Guarde a tonfa: ela volta ao lado esquerdo do cinto, longe da perna.
+5. Confira andar, corrida automática, combo e missão 01.
 
-ATUALIZAÇÃO PELO CELULAR
-- Faça backup da v0.5.
-- Envie index.html, app.js, style.css e LEIA-ME.txt para a RAIZ do repositório.
-- NÃO é necessário reenviar tio-urso.glb: o arquivo é o mesmo da v0.5.
-- Confirme o Commit changes e espere o GitHub Pages atualizar.
-- Teste o endereço https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=06
-- Se o Chrome mostrar código antigo, recarregue.
+INSTALAR NO GITHUB PELO CELULAR
+- Faça backup dos arquivos da v0.6 antes de atualizar.
+- Extraia o ZIP e envie index.html, app.js, style.css e LEIA-ME.txt
+  à raiz do mesmo repositório tio-urso-patrulha. Substitua os existentes.
+- NÃO reenvie tio-urso.glb: o modelo 3D original não foi alterado.
+- Commit changes; depois verifique GitHub Pages.
+- Abra: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=07
+- Se a página continuar com v0.6, atualize ou abra uma aba anônima.
 
-OBSERVAÇÃO
-A forma do bastão e a rotação local são aproximadas; se ele ficar inclinado na mão,
-o próximo ajuste será apenas girar o encaixe, sem mudar de modelo 3D.
+NOTA
+Os ajustes são por código e dependem do esqueleto GLB atual do Meshy.
+Validação em Android ainda é necessária, principalmente a pegada dos dedos.

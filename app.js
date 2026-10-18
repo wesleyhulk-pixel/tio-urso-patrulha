@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7: tonfa à ESQUERDA do personagem, coldre vazio à DIREITA e idle mais natural.
 // v0.6: tonfa presa ao osso real da mão e encaixe secundário no cinto.
 // v0.5: joystick analógico; empurre até a borda superior para corrida automática.
 // GLB do Tio Urso com Walking, Running e Triple_Combo_Attack preservado da v0.4.
@@ -46,7 +47,9 @@ let hasRiggedAnimations = false;
 let actionElapsed = 999;
 const COMBO_PLAYBACK_RATE = 1.8;
 let equipped = 'punhos';
-let tonfaModel = null, tonfaHolstered = null, actionEffect = null;
+let tonfaModel = null, tonfaHolstered = null, rightHolster = null, actionEffect = null;
+let gripBlend = 0;
+const grippingFingers = [];
 let rightHandBone = null, hipBone = null;
 
 let animVars = {
@@ -214,12 +217,32 @@ function installRiggedAnimations(gltf){
       const value=node?.[path];
       if(!value || typeof value.toArray!=='function')continue;
       const rest=value.toArray();
-      const vals=[...rest,...rest];
-      if(path==='quaternion') idleTracks.push(new THREE.QuaternionKeyframeTrack(track.name,[0,1],vals));
-      else if(path==='position' || path==='scale') idleTracks.push(new THREE.VectorKeyframeTrack(track.name,[0,1],vals));
+      // Repouso: braços relaxados de verdade em vez da A-pose da imagem-base.
+      // O movimento é calculado NO SISTEMA LOCAL DO PAI, preservando os eixos
+      // reais dos ossos do Meshy e evitando uma rotação arbitrária no ombro.
+      if(path==='quaternion') {
+        const q=new THREE.Quaternion().fromArray(rest);
+        let relaxation=0;
+        if(String(nodeName).replace(/[^a-z0-9]/gi,'').toLowerCase().endsWith('rightarm')) relaxation=0.29;
+        if(String(nodeName).replace(/[^a-z0-9]/gi,'').toLowerCase().endsWith('leftarm')) relaxation=-0.29;
+        if(relaxation){
+          const parentWorld=new THREE.Quaternion();
+          node.parent?.getWorldQuaternion(parentWorld);
+          const localAxis=new THREE.Vector3(0,0,1).applyQuaternion(parentWorld.invert()).normalize();
+          const correction=new THREE.Quaternion().setFromAxisAngle(localAxis,relaxation);
+          q.premultiply(correction).normalize();
+        }
+        // Pequena respiração no peito enquanto o Tio Urso está parado.
+        const isBreathing=String(nodeName).replace(/[^a-z0-9]/gi,'').toLowerCase().endsWith('spine2');
+        const restQ=q.toArray();
+        const breathe=isBreathing ? q.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),.016)).toArray():restQ;
+        idleTracks.push(new THREE.QuaternionKeyframeTrack(track.name,[0,1.5,3], [...restQ,...breathe,...restQ]));
+      } else if(path==='position'||path==='scale') {
+        idleTracks.push(new THREE.VectorKeyframeTrack(track.name,[0,1.5,3],[...rest,...rest,...rest]));
+      }
     }
     if(idleTracks.length<30)console.warn('O repouso pode estar incompleto:',idleTracks.length);
-    const idleClip=new THREE.AnimationClip('Parado',1,idleTracks);
+    const idleClip=new THREE.AnimationClip('Parado',3,idleTracks);
     animationMixer=new THREE.AnimationMixer(characterModel);
     idleAnim=animationMixer.clipAction(idleClip);
     walkAnim=animationMixer.clipAction(walkingClip);
@@ -297,6 +320,19 @@ function makeTonfa(){
   tonfaHolstered=buildTonfaModel();
   tonfaModel.visible=false;
   tonfaHolstered.visible=false;
+  // Coldre DIREITO ainda vazio: a pistola permanece bloqueada nesta fase.
+  // É só uma peça visual simples, sem arma ou disparos.
+  rightHolster=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.16,.28,.10),
+      new THREE.MeshStandardMaterial({color:0x11191d,roughness:.89}));
+  body.position.set(0,-.11,0);rightHolster.add(body);
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(.17,.042,.115),
+      new THREE.MeshStandardMaterial({color:0x333d44,roughness:.77}));
+  lip.position.set(0,.018,.004);rightHolster.add(lip);
+  const strap=new THREE.Mesh(new THREE.BoxGeometry(.19,.055,.14),
+      new THREE.MeshStandardMaterial({color:0x202a30,roughness:.86}));
+  strap.position.set(0,-.042,.0);rightHolster.add(strap);
+  rightHolster.visible=false;
 }
 // GLTFLoader pode normalizar os nomes originais dos ossos (ex.: mixamorig:RightHand
 // vira mixamorigRightHand). Buscar apenas pelo nome com ':' deixava a tonfa solta.
@@ -334,25 +370,41 @@ function attachTonfaToRig(){
   // O eixo Y positivo do osso da mão aponta da articulação para os dedos neste rig.
   // O cabo cruza a palma; o corpo do bastão segue o punho no ciclo walk/run/combo.
   rightHandBone.add(tonfaModel);
-  tonfaModel.position.set(-.012,.095,.018);
+  tonfaModel.position.set(-.010,.080,.015);
   tonfaModel.rotation.set(0,0,-.10);
-  tonfaModel.scale.setScalar(.80);
+  tonfaModel.scale.setScalar(.77);
   tonfaAttachedToHand=true;
+  // Dedos do personagem são articulados. O fechamento será sutil e progressivo
+  // quando a tonfa estiver equipada; não altera o arquivo GLB original.
+  for(const [name,angle] of [
+    ['RightHandMiddle2',.33],['RightHandMiddle3',.21],
+    ['RightHandPinky2',.33],['RightHandPinky3',.20],
+    ['RightHandThumb2',-.20]
+  ]){
+    const bone=findRigBone(characterModel,`mixamorig:${name}`);
+    if(bone)grippingFingers.push({bone,delta:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle)});
+  }
 
-  // Outro exemplar fica guardado junto à cintura quando os punhos estão ativos.
-  // Preferimos o osso do quadril para acompanhar o movimento; se inexistente,
-  // fixamos ao modelo (nunca às coordenadas do mundo).
+  // Convenção do esqueleto Meshy: +X = ESQUERDA DO PERSONAGEM,
+  // -X = DIREITA DO PERSONAGEM (não a esquerda/direita da câmera).
+  // Ambos os suportes acompanham o quadril, sem depender do ângulo da câmera.
   const waistParent=hipBone || characterModel;
   waistParent.add(tonfaHolstered);
+  waistParent.add(rightHolster);
   if(hipBone){
-    tonfaHolstered.position.set(-.33,-.12,.055);
-  } else {
-    tonfaHolstered.position.set(-.33,.68,.055);
+    tonfaHolstered.position.set(+.47,+.085,-.075); // quadril ESQUERDO, acima da coxa
+    rightHolster.position.set(-.435,-.035,-.065);   // coldre DIREITO, vazio
+  }else{
+    tonfaHolstered.position.set(+.47,1.02,-.075);
+    rightHolster.position.set(-.435,.91,-.065);
   }
-  tonfaHolstered.rotation.set(.05,0,Math.PI+.18);
-  tonfaHolstered.scale.setScalar(.68);
+  tonfaHolstered.rotation.set(.06,0,Math.PI+.34);
+  tonfaHolstered.scale.setScalar(.61);
+  rightHolster.rotation.set(0,0,-.07);
+  rightHolster.visible=true;
   refreshTonfaState();
-  console.info('Tonfa v0.6: mão encontrada:',rightHandBone.name,'quadril:',hipBone?.name||'modelo');
+  console.info('Tonfa v0.7: mão:',rightHandBone.name,'quadril:',hipBone?.name||'modelo',
+    'suporte esquerdo / coldre direito.');
   return true;
 }
 function selectEquipment(item){
@@ -367,7 +419,7 @@ function selectEquipment(item){
   el('action').querySelector('span').textContent=item==='tonfa'?'🥢':'👊';
   refreshTonfaState();
   el('equipment-panel').hidden=true;
-  notify(item==='tonfa'?'Tonfa na mão direita!':'Tonfa guardada no cinto.');
+  notify(item==='tonfa'?'Tonfa na mão direita!':'Tonfa guardada à esquerda do cinto.');
 }
 function doAction(){
   if(!started)return;
@@ -536,6 +588,13 @@ function update(dt){
     walkAnim.timeScale=THREE.MathUtils.clamp(speed/PLAYER_SPEED,.6,1.3);
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
+    // Posição da mão semi-fechada: mistura-se progressivamente à pose do clip.
+    // Aplica DEPOIS do mixer (que restaura as rotações animadas a cada frame).
+    gripBlend+=(Number(equipped==='tonfa')-gripBlend)*(1-Math.exp(-dt*11));
+    for(const {bone,delta} of grippingFingers){
+      const q=new THREE.Quaternion().identity().slerp(delta,gripBlend);
+      bone.quaternion.multiply(q).normalize();
+    }
   } else {
     animVars.phase.value=animationTime;
     animVars.amount.value=walkBlend;
@@ -552,7 +611,7 @@ function update(dt){
     actionEffect.position.set(.28,1.11,.83);
   }
   // Não alteramos a orientação da tonfa a cada quadro: o osso da mão já faz isso.
-  // O bastão do cinto acompanha o quadril automaticamente pela hierarquia 3D.
+  // A tonfa fica no lado esquerdo do cinto; o coldre vazio, à direita.
   // O modelo permanece assentado no piso, sem salto artificial.
   player.position.y=GROUND_Y;
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}
