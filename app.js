@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.6: tonfa presa ao osso real da mão e encaixe secundário no cinto.
 // v0.5: joystick analógico; empurre até a borda superior para corrida automática.
 // GLB do Tio Urso com Walking, Running e Triple_Combo_Attack preservado da v0.4.
 // Para trocar o personagem depois, altere somente o arquivo GLB e confira o eixo de orientação.
@@ -45,7 +46,9 @@ let hasRiggedAnimations = false;
 let actionElapsed = 999;
 const COMBO_PLAYBACK_RATE = 1.8;
 let equipped = 'punhos';
-let tonfaModel = null, actionEffect = null;
+let tonfaModel = null, tonfaHolstered = null, actionEffect = null;
+let rightHandBone = null, hipBone = null;
+
 let animVars = {
   phase: {value:0}, amount: {value:0}, action: {value:0}
 };
@@ -74,6 +77,7 @@ function updateHud(){
   el('tonfa-state').textContent = talked.size >= 3 ? '✓ Liberado após Missão 01' : '🔒 Conclua o contato comunitário';
   el('equip-tonfa').disabled = talked.size < 3;
   if(talked.size >= 3) el('equip-tonfa').classList.add('unlocked');
+  refreshTonfaState();
 }
 updateHud();
 
@@ -274,33 +278,96 @@ function makeAttackEffect(){
   const effect=new THREE.Mesh(new THREE.TorusGeometry(.26,.045,8,24),new THREE.MeshBasicMaterial({color:0xffd978,transparent:true,opacity:0,depthWrite:false}));
   effect.visible=false;effect.position.set(.25,1.15,.85);player.add(effect);actionEffect=effect;
 }
-function makeTonfa(){
-  const weapon=new THREE.Group();const mat=new THREE.MeshStandardMaterial({color:0x242b33,roughness:.7});
-  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.83,10),mat);shaft.position.y=.28;weapon.add(shaft);
-  const grip=new THREE.Mesh(new THREE.CylinderGeometry(.043,.043,.30,10),mat);grip.rotation.z=Math.PI/2;grip.position.set(-.12,.02,0);weapon.add(grip);
-  weapon.position.set(.37,.64,.08);weapon.visible=false;player.add(weapon);tonfaModel=weapon;
+// Tonfa com dois encaixes: um modelo acompanha a mão, outro fica na lateral do cinto.
+// Nunca deixamos o bastão como filho de 'player' solto na cena.
+function buildTonfaModel(){
+  const weapon = new THREE.Group();
+  const black = new THREE.MeshStandardMaterial({color:0x202a32, roughness:.72, metalness:.08});
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.026,.029,.70,12),black);
+  shaft.position.y=.33; weapon.add(shaft);
+  const sideHandle = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.23,12),black);
+  sideHandle.rotation.z=Math.PI/2;
+  sideHandle.position.set(-.105,.065,0);weapon.add(sideHandle);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(.033,.033,.13,12),black);
+  grip.position.set(0,.066,0);weapon.add(grip);
+  return weapon;
 }
-// Vincula o bastão à mão DIREITA do esqueleto para acompanhar o golpe.
-// A posição exata poderá ser afinada após o teste no celular.
-function attachTonfaToHand(){
-  const hand=characterModel?.getObjectByName('mixamorig:RightHand');
-  if(!hand || !tonfaModel)return false;
-  hand.add(tonfaModel);
-  tonfaModel.position.set(0,.035,-.025);
-  tonfaModel.rotation.set(0,0,.05);
-  tonfaModel.scale.setScalar(.70);
+function makeTonfa(){
+  tonfaModel=buildTonfaModel();
+  tonfaHolstered=buildTonfaModel();
+  tonfaModel.visible=false;
+  tonfaHolstered.visible=false;
+}
+// GLTFLoader pode normalizar os nomes originais dos ossos (ex.: mixamorig:RightHand
+// vira mixamorigRightHand). Buscar apenas pelo nome com ':' deixava a tonfa solta.
+function findRigBone(root, target){
+  if(!root)return null;
+  const strip=s=>String(s||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
+  const expected=strip(target);
+  let exactBone=null, looseBone=null;
+  root.traverse(node=>{
+    if(!node.isBone)return;
+    const name=strip(node.name);
+    if(name===expected) exactBone=node;
+    else if(!looseBone && name.endsWith(expected))looseBone=node;
+  });
+  if(exactBone || looseBone)return exactBone || looseBone;
+  // Cobre GLBs em que o objeto da articulação não está marcado como Bone.
+  let fallback=null;
+  root.traverse(node=>{if(!fallback && strip(node.name)===expected) fallback=node;});
+  return fallback;
+}
+function refreshTonfaState(){
+  if(tonfaModel) tonfaModel.visible=Boolean(rightHandBone) && equipped==='tonfa';
+  if(tonfaHolstered) tonfaHolstered.visible=talked.size>=3 && equipped!=='tonfa';
+}
+function attachTonfaToRig(){
+  rightHandBone=findRigBone(characterModel,'mixamorig:RightHand');
+  hipBone=findRigBone(characterModel,'mixamorig:Hips');
+  if(!rightHandBone || !tonfaModel){
+    tonfaAttachedToHand=false;
+    console.warn('Tonfa: não encontrei mixamorig RightHand; impedindo objeto solto.',
+      [...new Set((()=>{const names=[];characterModel?.traverse(n=>{if(n.isBone)names.push(n.name);});return names;})())]);
+    refreshTonfaState();
+    return false;
+  }
+  // O eixo Y positivo do osso da mão aponta da articulação para os dedos neste rig.
+  // O cabo cruza a palma; o corpo do bastão segue o punho no ciclo walk/run/combo.
+  rightHandBone.add(tonfaModel);
+  tonfaModel.position.set(-.012,.095,.018);
+  tonfaModel.rotation.set(0,0,-.10);
+  tonfaModel.scale.setScalar(.80);
   tonfaAttachedToHand=true;
+
+  // Outro exemplar fica guardado junto à cintura quando os punhos estão ativos.
+  // Preferimos o osso do quadril para acompanhar o movimento; se inexistente,
+  // fixamos ao modelo (nunca às coordenadas do mundo).
+  const waistParent=hipBone || characterModel;
+  waistParent.add(tonfaHolstered);
+  if(hipBone){
+    tonfaHolstered.position.set(-.33,-.12,.055);
+  } else {
+    tonfaHolstered.position.set(-.33,.68,.055);
+  }
+  tonfaHolstered.rotation.set(.05,0,Math.PI+.18);
+  tonfaHolstered.scale.setScalar(.68);
+  refreshTonfaState();
+  console.info('Tonfa v0.6: mão encontrada:',rightHandBone.name,'quadril:',hipBone?.name||'modelo');
   return true;
 }
 function selectEquipment(item){
   if(item==='tonfa'&&talked.size<3){notify('Complete a missão comunitária para receber a tonfa.');return;}
+  if(item==='tonfa' && !tonfaAttachedToHand){
+    notify('Encaixe da tonfa indisponível neste modelo; bastão não será deixado solto.',4200);
+    return;
+  }
   if(item==='arma'){notify('Arma de fogo: aguardando futura missão de habilitação.');return;}
   equipped=item;
   el('weapon-label').textContent=item==='tonfa'?'🥢 TONFA':'👊 PUNHOS';
   el('action').querySelector('span').textContent=item==='tonfa'?'🥢':'👊';
-  if(tonfaModel)tonfaModel.visible=item==='tonfa';
+  refreshTonfaState();
   el('equipment-panel').hidden=true;
-  notify(item==='tonfa'?'Tonfa equipada.':'Punhos selecionados.');
+  notify(item==='tonfa'?'Tonfa na mão direita!':'Tonfa guardada no cinto.');
 }
 function doAction(){
   if(!started)return;
@@ -379,7 +446,7 @@ function buildScene(){
         // Reserva para um modelo antigo sem ossos.
         installProceduralGait(characterModel);
       }
-      attachTonfaToHand();
+      attachTonfaToRig();
       console.info('Tio Urso GLB carregado corretamente, rig:',hasRiggedAnimations);
       resolve(true);
     },undefined,error=>{
@@ -484,13 +551,8 @@ function update(dt){
     actionEffect.scale.setScalar(1+.85*(1-fxPulse));
     actionEffect.position.set(.28,1.11,.83);
   }
-  if(tonfaModel){
-    tonfaModel.visible=equipped==='tonfa';
-    if(!tonfaAttachedToHand){
-      tonfaModel.rotation.x=-pulse*.65;
-      tonfaModel.rotation.z=Math.sin(animationTime)*walkBlend*.08;
-    }
-  }
+  // Não alteramos a orientação da tonfa a cada quadro: o osso da mão já faz isso.
+  // O bastão do cinto acompanha o quadril automaticamente pela hierarquia 3D.
   // O modelo permanece assentado no piso, sem salto artificial.
   player.position.y=GROUND_Y;
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}

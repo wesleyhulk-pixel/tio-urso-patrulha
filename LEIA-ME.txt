@@ -1,26 +1,28 @@
-TIO URSO: PATRULHA — PROTÓTIPO v0.4
+TIO URSO: PATRULHA — V0.6 — CORREÇÃO DA TONFA
 
 NOVO
-- Usa novo GLB enviado pelo usuário, com animações Walking, Running e Triple_Combo_Attack.
-- Botão AÇÃO executa um combo de três golpes (movimento de treinamento).
-- Tonfa acompanha a mão direita, quando equipada, após concluir missão comunitária.
-- Combo é reproduzido uma vez por toque, com transição suave e bloqueio temporário de movimentação.
-- Movimento horizontal excessivo do quadril no combo foi neutralizado para não deslizar no mapa.
-- Punhos e tonfa disponíveis conforme o progresso da missão 01. Arma de fogo continua bloqueada.
+- A tonfa equipada é anexada ao osso da mão direita do modelo GLB.
+- A busca por osso aceita nomes normalizados sem dois-pontos, como os gerados pelo GLTFLoader.
+- A tonfa guardada é ligada ao quadril/cinto (não fica flutuando na rua).
+- Quando a mão não é encontrada, a tonfa não é exibida solta; o jogo informa o problema.
+- Ação e animação Triple_Combo_Attack preservadas, com bastão seguindo a mão durante o combo.
+- Todos os controles, joystick com corrida automática, caminhada, corrida, missão 01 e XP permanecem.
+- Nenhuma arma de fogo liberada nesta versão.
 
-LIMITAÇÕES
-- Triple_Combo_Attack é o nome de uma animação genérica de combo: sua execução com tonfa deve ser avaliada visualmente.
-- O modelo de bastão é uma representação 3D simplificada gerada pelo próprio código. Pode precisar de ajuste de encaixe na mão.
-- Não existe dano aos cidadãos da primeira missão.
-- O mapa ainda é um cenário fictício de teste.
+COMO TESTAR
+1. Complete o contato com os três cidadãos (ou use seu progresso salvo).
+2. Clique EQUIP. -> Tonfa. Ela deve aparecer ligada à mão direita.
+3. Caminhe, corra e toque em AÇÃO. A tonfa deve acompanhar a mão, sem permanecer na rua.
+4. Volte em EQUIP. -> Punhos. A tonfa deve reaparecer guardada no cinto.
 
 ATUALIZAÇÃO PELO CELULAR
-1. Extraia este ZIP: são cinco arquivos sem pastas internas.
-2. Abra github.com/wesleyhulk-pixel/tio-urso-patrulha
-3. Add file → Upload files; envie os cinco arquivos substituindo os da v0.3.
-4. Commit changes; espere a publicação do GitHub Pages.
-5. Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=04
-6. Guarde uma cópia do GLB original e do ZIP da v0.3.
+- Faça backup da v0.5.
+- Envie index.html, app.js, style.css e LEIA-ME.txt para a RAIZ do repositório.
+- NÃO é necessário reenviar tio-urso.glb: o arquivo é o mesmo da v0.5.
+- Confirme o Commit changes e espere o GitHub Pages atualizar.
+- Teste o endereço https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=06
+- Se o Chrome mostrar código antigo, recarregue.
 
-CONTEÚDO:
-index.html, app.js, style.css, tio-urso.glb, LEIA-ME.txt
+OBSERVAÇÃO
+A forma do bastão e a rotação local são aproximadas; se ele ficar inclinado na mão,
+o próximo ajuste será apenas girar o encaixe, sem mudar de modelo 3D.
