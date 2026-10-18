@@ -1,3 +1,4 @@
+/* v0.5: deslocamento analógico e corrida automática pelo joystick. */
 /* v0.4: GLB do Meshy atualizado com combo de golpes e tonfa presa à mão. */
 /* v0.3: animações de caminhada e corrida importadas do Meshy. */
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;background:#071728;touch-action:none;--gold:#f3bf4c;--navy:#09192b;}
@@ -24,3 +25,9 @@
 .equipment-panel p{margin:9px 0 0;font-size:10px;color:#cfdae2;line-height:1.35}
 @media(max-height:400px){.buttons{gap:8px}#equipment-ui{bottom:93px;right:12px}.equipment-panel{bottom:125px}.round-button.action{transform:translateY(-4px)}#weapon-label{display:none}}
 @media(orientation:portrait){#equipment-ui{bottom:108px;right:8px}.equipment-panel{bottom:140px}.buttons{gap:6px}}
+
+/* v0.5: realce visual quando a alavanca atinge a zona de corrida. */
+.joystick.auto-running{border-color:#ffe49b;box-shadow:0 0 0 6px #edba5540,0 0 15px #f3bc5d80}
+.joystick.auto-running .stick{background:linear-gradient(145deg,#ffe18f,#a46d24);border-color:#fff2cb}
+.joystick::after{content:'CORRENDO';position:absolute;top:-19px;left:50%;transform:translateX(-50%);color:#ffe29b;font-size:9px;font-weight:900;letter-spacing:.8px;white-space:nowrap;opacity:0;pointer-events:none;text-shadow:0 1px 5px #000;transition:opacity .12s}
+.joystick.auto-running::after{opacity:1}

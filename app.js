@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// GLB do Tio Urso com Walking, Running e Triple_Combo_Attack. Versão 0.4.
+// v0.5: joystick analógico; empurre até a borda superior para corrida automática.
+// GLB do Tio Urso com Walking, Running e Triple_Combo_Attack preservado da v0.4.
 // Para trocar o personagem depois, altere somente o arquivo GLB e confira o eixo de orientação.
 const CHARACTER_FILE = './tio-urso.glb';
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
@@ -19,7 +20,12 @@ let introButton = el('start');
 let citizenNodes = [];
 let obstacles = [];
 const pressedKeys = new Set();
-let joyX = 0, joyY = 0;
+let joyX = 0, joyY = 0, autoRunByStick = false;
+// Limiar com histerese: impede alternância rápida entre andar e correr.
+const AUTO_RUN_ON_FORWARD = 0.79;
+const AUTO_RUN_ON_PRESSURE = 0.88;
+const AUTO_RUN_OFF_FORWARD = 0.67;
+const AUTO_RUN_OFF_PRESSURE = 0.75;
 const camPosWanted = new THREE.Vector3();
 const playerPos = new THREE.Vector3(0,0,-13);
 const targetPos = new THREE.Vector3();
@@ -413,10 +419,21 @@ function update(dt){
   forward.set(-Math.sin(camYaw),0,-Math.cos(camYaw));
   right.set(-forward.z,0,forward.x);
   motion.copy(forward).multiplyScalar(-vy).addScaledVector(right,vx);
-  const trying=motion.lengthSq()>.008 && !comboActive && comboBlend<.25;
-  const running=(runHeld||pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight'))&&trying;
+  // O joystick agora é analógico: deslocamento curto = passo leve; até a borda = velocidade total.
+  // O botão CORRER e Shift continuam funcionando independentemente da zona automática.
+  const keyboardMoving = pressedKeys.has('KeyA') || pressedKeys.has('ArrowLeft') ||
+    pressedKeys.has('KeyD') || pressedKeys.has('ArrowRight') ||
+    pressedKeys.has('KeyW') || pressedKeys.has('ArrowUp') ||
+    pressedKeys.has('KeyS') || pressedKeys.has('ArrowDown');
+  const joystickPressure = Math.min(1, Math.hypot(joyX, joyY));
+  const analogScale = keyboardMoving ? 1 : THREE.MathUtils.clamp((joystickPressure - 0.10) / 0.65, 0, 1);
+  const trying=motion.lengthSq()>.008 && analogScale>.045 && !comboActive && comboBlend<.25;
+  const running=(autoRunByStick||runHeld||pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight'))&&trying;
   const desired=new THREE.Vector3();
-  if(trying){desired.copy(motion).normalize().multiplyScalar(running?RUN_SPEED:PLAYER_SPEED);}
+  if(trying){
+    const stride=keyboardMoving?1:Math.max(0.30,analogScale);
+    desired.copy(motion).normalize().multiplyScalar((running?RUN_SPEED:PLAYER_SPEED)*stride);
+  }
   // Aceleração/desaceleração gradual: menos 'deslizamento'.
   const alpha=1-Math.exp(-dt*(trying?12:17));
   velocitySmooth.lerp(desired,alpha);
@@ -509,11 +526,40 @@ function loop(){
 }
 function installControls(){
   const stick=el('stick'),zone=el('joystick');let activePointer=null;
-  function setStick(e){const r=zone.getBoundingClientRect(),max=r.width*.32;const ox=e.clientX-r.left-r.width/2,oy=e.clientY-r.top-r.height/2;const length=Math.hypot(ox,oy),k=length>max?max/length:1;const dx=ox*k,dy=oy*k;stick.style.transform=`translate(${dx}px,${dy}px)`;joyX=dx/max;joyY=dy/max;}
-  zone.addEventListener('pointerdown',e=>{if(activePointer!==null)return;activePointer=e.pointerId;zone.setPointerCapture(e.pointerId);setStick(e);e.preventDefault();});
+  function updateAutoRunFromStick(){
+    const pressure=Math.min(1,Math.hypot(joyX,joyY));
+    const forwardPush=-joyY;
+    const shouldSprint=autoRunByStick
+      ? forwardPush>=AUTO_RUN_OFF_FORWARD && pressure>=AUTO_RUN_OFF_PRESSURE
+      : forwardPush>=AUTO_RUN_ON_FORWARD && pressure>=AUTO_RUN_ON_PRESSURE;
+    if(shouldSprint!==autoRunByStick){
+      autoRunByStick=shouldSprint;
+      zone.classList.toggle('auto-running',shouldSprint);
+    }
+  }
+  function setStick(e){
+    const r=zone.getBoundingClientRect(),max=r.width*.32;
+    const ox=e.clientX-r.left-r.width/2,oy=e.clientY-r.top-r.height/2;
+    const length=Math.hypot(ox,oy),k=length>max?max/length:1;
+    const dx=ox*k,dy=oy*k;
+    stick.style.transform=`translate(${dx}px,${dy}px)`;
+    joyX=dx/max;joyY=dy/max;
+    updateAutoRunFromStick();
+  }
+  function clearStick(){
+    activePointer=null;joyX=0;joyY=0;autoRunByStick=false;
+    stick.style.transform='translate(0,0)';
+    zone.classList.remove('auto-running');
+  }
+  zone.addEventListener('pointerdown',e=>{
+    if(activePointer!==null)return;
+    activePointer=e.pointerId;zone.setPointerCapture(e.pointerId);setStick(e);e.preventDefault();
+  });
   zone.addEventListener('pointermove',e=>{if(activePointer===e.pointerId){setStick(e);e.preventDefault();}});
-  const resetStick=e=>{if(activePointer!==e.pointerId)return;activePointer=null;stick.style.transform='translate(0,0)';joyX=0;joyY=0;};
-  zone.addEventListener('pointerup',resetStick);zone.addEventListener('pointercancel',resetStick);zone.addEventListener('lostpointercapture',()=>{activePointer=null;joyX=0;joyY=0;stick.style.transform='translate(0,0)';});
+  const resetStick=e=>{if(activePointer===e.pointerId)clearStick();};
+  zone.addEventListener('pointerup',resetStick);
+  zone.addEventListener('pointercancel',resetStick);
+  zone.addEventListener('lostpointercapture',clearStick);
   el('run').addEventListener('pointerdown',e=>{runHeld=true;el('run').classList.add('pressed');el('run').setPointerCapture(e.pointerId);e.preventDefault();});
   for(const ev of ['pointerup','pointercancel','lostpointercapture'])el('run').addEventListener(ev,()=>{runHeld=false;el('run').classList.remove('pressed');});
   el('interact').addEventListener('click',interact);
@@ -525,7 +571,7 @@ function installControls(){
   el('equip-firearm').addEventListener('click',()=>selectEquipment('arma'));
   window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space')doAction();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;});
   window.addEventListener('keyup',e=>pressedKeys.delete(e.code));
-  window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;joyX=0;joyY=0;});
+  window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;clearStick();});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.
   let cameraPointer=null,lastX=0;
   mount.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;cameraPointer=e.pointerId;lastX=e.clientX;mount.setPointerCapture(e.pointerId);});
@@ -544,7 +590,7 @@ try{
   el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';
   introButton.addEventListener('click',async()=>{
     if(!ready)return;
-    started=true;el('intro').style.display='none';notify('Missão 01: converse com 3 cidadãos. Use AÇÃO para testar o combo de golpes.',3600);
+    started=true;el('intro').style.display='none';notify('Empurre o joystick até o topo para CORRER automaticamente. Converse com 3 cidadãos!',3900);
     try {if(screen.orientation?.lock)await screen.orientation.lock('landscape');} catch(e) { /* mobile browsers may disallow */ }
   });
   loop();
