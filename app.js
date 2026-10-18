@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.2: uma tonfa 3D única, alternando entre suporte esquerdo e mão direita.
+// Coldre Meshy à direita; controle de inclinação do punho e dedos ao empunhar.
 // v0.7.1: correção de encaixes; preserva animações, joystick e idle v0.7.
 // O bastão em uso continua como na v0.6 (estável). Modelos leves só para itens guardados.
 // v0.7: tonfa à ESQUERDA do personagem, coldre vazio à DIREITA e idle mais natural.
@@ -51,7 +53,9 @@ let hasRiggedAnimations = false;
 let actionElapsed = 999;
 const COMBO_PLAYBACK_RATE = 1.8;
 let equipped = 'punhos';
-let tonfaModel = null, tonfaHolstered = null, rightHolster = null, actionEffect = null;
+let tonfaModel = null, rightHolster = null, actionEffect = null;
+let tonfaBeltSocket=null, tonfaHandSocket=null, tonfaAssetLoaded=false;
+let rightHandRestQuat=null;
 let gripBlend = 0;
 const grippingFingers = [];
 let rightHandBone = null, hipBone = null;
@@ -305,29 +309,17 @@ function makeAttackEffect(){
   const effect=new THREE.Mesh(new THREE.TorusGeometry(.26,.045,8,24),new THREE.MeshBasicMaterial({color:0xffd978,transparent:true,opacity:0,depthWrite:false}));
   effect.visible=false;effect.position.set(.25,1.15,.85);player.add(effect);actionEffect=effect;
 }
-// Tonfa com dois encaixes: um modelo acompanha a mão, outro fica na lateral do cinto.
-// Nunca deixamos o bastão como filho de 'player' solto na cena.
-function buildTonfaModel(){
-  const weapon = new THREE.Group();
-  const black = new THREE.MeshStandardMaterial({color:0x202a32, roughness:.72, metalness:.08});
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.026,.029,.70,12),black);
-  shaft.position.y=.33; weapon.add(shaft);
-  const sideHandle = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.23,12),black);
-  sideHandle.rotation.z=Math.PI/2;
-  sideHandle.position.set(-.105,.065,0);weapon.add(sideHandle);
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(.033,.033,.13,12),black);
-  grip.position.set(0,.066,0);weapon.add(grip);
-  return weapon;
-}
+// Uma única tonfa GLB é transferida entre o suporte do cinto e a mão.
+// Os suportes são pontos de encaixe, não cópias de modelos geométricos.
 function makeTonfa(){
-  tonfaModel=buildTonfaModel();
-  tonfaHolstered=buildTonfaModel();
-  tonfaModel.visible=false;
-  tonfaHolstered.visible=false;
-  // O coldre só será mostrado quando o GLB correto estiver carregado.
-  // Nada de caixa provisória gigante, nem objetos sem ligação com o corpo.
-  rightHolster=new THREE.Group();
-  rightHolster.visible=false;
+  // UM bastão 3D é transferido entre dois encaixes. Não criamos mais uma
+  // tonfa geométrica diferente para a mão e outra para o cinto.
+  tonfaModel = new THREE.Group();
+  tonfaBeltSocket = new THREE.Group();
+  tonfaHandSocket = new THREE.Group();
+  tonfaModel.visible = false;
+  rightHolster = new THREE.Group();
+  rightHolster.visible = false;
 }
 // GLTFLoader pode normalizar os nomes originais dos ossos (ex.: mixamorig:RightHand
 // vira mixamorigRightHand). Buscar apenas pelo nome com ':' deixava a tonfa solta.
@@ -348,118 +340,118 @@ function findRigBone(root, target){
   root.traverse(node=>{if(!fallback && strip(node.name)===expected) fallback=node;});
   return fallback;
 }
+// Convenção do GLB do personagem: LeftUpLeg tem X positivo, logo +X é
+// seu lado esquerdo e -X é seu lado direito, independentemente da câmera.
+const BELT_TONFA = {x:.365, y:-.105, z:-.105};
+const BELT_HOLSTER = {x:-.335, y:-.045, z:-.095};
+
 function refreshTonfaState(){
-  if(tonfaModel) tonfaModel.visible=Boolean(rightHandBone) && equipped==='tonfa';
-  if(tonfaHolstered) tonfaHolstered.visible=talked.size>=3 && equipped!=='tonfa';
+  if(!tonfaModel || !tonfaHandSocket || !tonfaBeltSocket)return;
+  const canUse = talked.size >= 3 && tonfaAttachedToHand;
+  const inHand = canUse && equipped==='tonfa';
+  const targetSocket = inHand ? tonfaHandSocket : tonfaBeltSocket;
+  if(tonfaModel.parent!==targetSocket){
+    // Reparentar muda apenas o ponto de fixação, não o objeto ou sua malha.
+    targetSocket.add(tonfaModel);
+    tonfaModel.position.set(0,0,0);
+    tonfaModel.rotation.set(0,0,0);
+    tonfaModel.scale.set(1,1,1);
+  }
+  tonfaModel.visible=canUse && tonfaAssetLoaded;
 }
 function attachTonfaToRig(){
   rightHandBone=findRigBone(characterModel,'mixamorig:RightHand');
   hipBone=findRigBone(characterModel,'mixamorig:Hips');
-  if(!rightHandBone || !tonfaModel){
+  if(!rightHandBone || !hipBone){
     tonfaAttachedToHand=false;
-    console.warn('Tonfa: não encontrei mixamorig RightHand; impedindo objeto solto.',
-      [...new Set((()=>{const names=[];characterModel?.traverse(n=>{if(n.isBone)names.push(n.name);});return names;})())]);
-    refreshTonfaState();
+    console.warn('Equipamentos: ossos de mão/quadril ausentes; ocultando acessórios.');
     return false;
   }
-  // O eixo Y positivo do osso da mão aponta da articulação para os dedos neste rig.
-  // O cabo cruza a palma; o corpo do bastão segue o punho no ciclo walk/run/combo.
-  rightHandBone.add(tonfaModel);
-  tonfaModel.position.set(-.010,.080,.015);
-  tonfaModel.rotation.set(0,0,-.10);
-  tonfaModel.scale.setScalar(.77);
   tonfaAttachedToHand=true;
-  // Dedos do personagem são articulados. O fechamento será sutil e progressivo
-  // quando a tonfa estiver equipada; não altera o arquivo GLB original.
+  rightHandRestQuat=rightHandBone.quaternion.clone();
+  hipBone.add(tonfaBeltSocket);
+  hipBone.add(rightHolster);
+  rightHandBone.add(tonfaHandSocket);
+
+  // Fixação do BASTÃO GUARDADO no quadril esquerdo. Centro fora da lateral
+  // da perna, atrás da costura, no nível do cinto. Comprimento abaixo do cinto.
+  tonfaBeltSocket.position.set(BELT_TONFA.x,BELT_TONFA.y,BELT_TONFA.z);
+  tonfaBeltSocket.rotation.set(.06,-.20,-.10);
+  // Encaixe da palma. Mesmo GLB, já orientado com haste na vertical.
+  // Eixo local Y do osso da mão prossegue em direção aos dedos.
+  tonfaHandSocket.position.set(-.015,.085,.024);
+  tonfaHandSocket.rotation.set(.04,0,-.12);
+
+  // Coldre vazio do lado DIREITO, com a parte superior na linha do cinto.
+  rightHolster.position.set(BELT_HOLSTER.x,BELT_HOLSTER.y,BELT_HOLSTER.z);
+  rightHolster.rotation.set(.03,-.15,-.07);
+  rightHolster.visible=false;
+
+  // O esqueleto disponível tem dedos Middle, Pinky e Thumb; não inventamos
+  // bones Ring e Index. Flexão local progressiva para uma pegada mais firme.
+  grippingFingers.length=0;
   for(const [name,angle] of [
-    ['RightHandMiddle2',.33],['RightHandMiddle3',.21],
-    ['RightHandPinky2',.33],['RightHandPinky3',.20],
-    ['RightHandThumb2',-.20]
+    ['RightHandMiddle1',.28], ['RightHandMiddle2',.44], ['RightHandMiddle3',.38],
+    ['RightHandPinky1',.27],  ['RightHandPinky2',.43],  ['RightHandPinky3',.36],
+    ['RightHandThumb1',-.13], ['RightHandThumb2',-.22], ['RightHandThumb3',-.16],
   ]){
     const bone=findRigBone(characterModel,`mixamorig:${name}`);
     if(bone)grippingFingers.push({bone,delta:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle)});
   }
-
-  // Convenção do esqueleto Meshy: +X = ESQUERDA DO PERSONAGEM,
-  // -X = DIREITA DO PERSONAGEM (não a esquerda/direita da câmera).
-  // Ambos os suportes acompanham o quadril, sem depender do ângulo da câmera.
-  const waistParent=hipBone || characterModel;
-  waistParent.add(tonfaHolstered);
-  waistParent.add(rightHolster);
-  // Medidas tomadas a partir do osso do quadril, NÃO das coordenadas da cena.
-  // +X = esquerda do Tio Urso, -X = direita do Tio Urso.
-  // Modelos 3D normalizados têm a origem no centro de sua própria geometria.
-  if(hipBone){
-    tonfaHolstered.position.set(+.245,-.065,-.005);
-    rightHolster.position.set(-.255,-.100,.025);
-  }else{
-    tonfaHolstered.position.set(+.245,.92,-.005);
-    rightHolster.position.set(-.255,.86,.025);
-  }
-  // Enquanto os acessórios externos carregam, mantém a tonfa simples recolhida.
-  tonfaHolstered.rotation.set(.03,0,Math.PI+.12);
-  tonfaHolstered.scale.setScalar(.62);
-  rightHolster.rotation.set(0,.25,-.11);
-  rightHolster.visible=false;
   refreshTonfaState();
   loadDetailedBeltAssets();
-  console.info('Tonfa v0.7.1: mão:',rightHandBone.name,'quadril:',hipBone?.name||'modelo',
-    'encaixes próximos ao cinto; coldre aparece após carregamento.');
   return true;
 }
 
-// GLBs enviados pelo usuário, simplificados para reduzir o custo no Android.
-// A geometria original de cada acessório vem centrada com sua própria escala.
-// Transformamos para medidas reais aproximadas (uma tonfa ~0,5 m, coldre ~0,3 m).
+// O modelo da tonfa original está ao longo do eixo X. A rotação de -90°
+// transforma o eixo comprido em Y; a geometria é centralizada UMA vez.
 function normalizeAccessoryScene(root, desiredLength, orientation){
   const bounds=new THREE.Box3().setFromObject(root);
   const center=bounds.getCenter(new THREE.Vector3());
   const size=bounds.getSize(new THREE.Vector3());
   const span=Math.max(size.x,size.y,size.z,.0001);
-  const centered=new THREE.Group();
   const pivot=new THREE.Group();
+  const centered=new THREE.Group();
   centered.add(root);
   root.position.sub(center);
   centered.scale.setScalar(desiredLength/span);
-  // Tonfa foi produzida ao longo de X; colocar sua haste ao longo de Y.
-  if(orientation==='tonfa') pivot.rotation.z=-Math.PI/2;
+  if(orientation==='tonfa')pivot.rotation.z=-Math.PI/2;
   pivot.add(centered);
   root.traverse(o=>{if(o.isMesh){o.castShadow=false;o.frustumCulled=false;}});
   return pivot;
 }
 function loadDetailedBeltAssets(){
   const loader=new GLTFLoader();
-  // A TONFA da mão continua como na v0.6, com pegada já testada.
-  // Somente a tonfa GUARDADA recebe a nova malha.
   loader.load(TONFA_BELT_FILE,gltf=>{
-    if(!tonfaHolstered || !characterModel)return;
-    const item=normalizeAccessoryScene(gltf.scene,.48,'tonfa');
-    tonfaHolstered.clear();
-    tonfaHolstered.add(item);
-    if(hipBone)tonfaHolstered.position.set(+.245,-.205,-.01);
-    else tonfaHolstered.position.set(+.245,.78,-.01);
-    tonfaHolstered.rotation.set(.05,.1,-.13);
-    tonfaHolstered.scale.setScalar(1);
+    if(!tonfaModel || !characterModel)return;
+    const item=normalizeAccessoryScene(gltf.scene,.52,'tonfa');
+    tonfaModel.clear();
+    tonfaModel.add(item);
+    tonfaAssetLoaded=true;
     refreshTonfaState();
-    console.info('Tonfa guardada: modelo GLB leve carregado, próximo ao quadril esquerdo.');
-  },undefined,err=>console.warn('Tonfa GLB indisponível, usando versão simplificada.',err));
-  // Coldre vazio real, do lado DIREITO; não libera a arma de fogo.
+    console.info('v0.7.2: tonfa ÚNICA carregada, mão e cinto usam a mesma malha.');
+  },undefined,error=>{
+    // Nunca substituímos a tonfa real por um desenho diferente.
+    tonfaModel.visible=false;
+    console.warn('Arquivo tonfa.glb indisponível; ocultando acessório.',error);
+    notify('Não foi possível carregar tonfa.glb; verifique o GitHub.',4000);
+  });
   loader.load(HOLSTER_FILE,gltf=>{
     if(!rightHolster || !characterModel)return;
-    const item=normalizeAccessoryScene(gltf.scene,.29,'holster');
+    const item=normalizeAccessoryScene(gltf.scene,.27,'holster');
     rightHolster.clear();
     rightHolster.add(item);
-    rightHolster.rotation.set(.04, .32, -.11);
-    rightHolster.scale.setScalar(1);
     rightHolster.visible=true;
-    console.info('Coldre real GLB leve carregado à direita.');
-  },undefined,err=>{rightHolster.visible=false;console.warn('Coldre GLB indisponível, oculto para evitar bug.',err);});
+  },undefined,error=>{
+    rightHolster.visible=false;
+    console.warn('Coldre GLB indisponível.',error);
+  });
 }
 
 function selectEquipment(item){
   if(item==='tonfa'&&talked.size<3){notify('Complete a missão comunitária para receber a tonfa.');return;}
-  if(item==='tonfa' && !tonfaAttachedToHand){
-    notify('Encaixe da tonfa indisponível neste modelo; bastão não será deixado solto.',4200);
+  if(item==='tonfa' && (!tonfaAttachedToHand || !tonfaAssetLoaded)){
+    notify('Tonfa 3D ainda não carregou ou não há osso da mão. Aguarde.',4200);
     return;
   }
   if(item==='arma'){notify('Arma de fogo: aguardando futura missão de habilitação.');return;}
@@ -637,9 +629,14 @@ function update(dt){
     walkAnim.timeScale=THREE.MathUtils.clamp(speed/PLAYER_SPEED,.6,1.3);
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
-    // Posição da mão semi-fechada: mistura-se progressivamente à pose do clip.
-    // Aplica DEPOIS do mixer (que restaura as rotações animadas a cada frame).
-    gripBlend+=(Number(equipped==='tonfa')-gripBlend)*(1-Math.exp(-dt*11));
+    // Fixação suave do punho enquanto empunha a tonfa: amortecer a rotação
+    // da mão gerada pelos clips, SEM paralisar antebraço, cotovelo e ombro.
+    // Fazemos DEPOIS do mixer para não reescrever os arquivos de animação.
+    gripBlend+=(Number(equipped==='tonfa')-gripBlend)*(1-Math.exp(-dt*9));
+    if(rightHandBone && rightHandRestQuat && gripBlend>.001){
+      const wristCorrection=comboActive ? .68 : .82;
+      rightHandBone.quaternion.slerp(rightHandRestQuat,wristCorrection*gripBlend);
+    }
     for(const {bone,delta} of grippingFingers){
       const q=new THREE.Quaternion().identity().slerp(delta,gripBlend);
       bone.quaternion.multiply(q).normalize();

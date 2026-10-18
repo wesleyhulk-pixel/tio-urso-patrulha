@@ -1,11 +1,17 @@
-TIO URSO: PATRULHA — HOTFIX 0.7.1
+TIO URSO: PATRULHA — 0.7.2
 
-Correção baseada na v0.7 sem perder as animações, a pose de descanso, a missão, o progresso e o joystick.
-- Tonfa guardada na lateral ESQUERDA do personagem, com modelo Meshy novo simplificado.
-- Coldre vazio Meshy novo à DIREITA.
-- Tonfa em uso permanece presa à mão direita, como estava funcionando na v0.6.
-- Nenhuma nova arma, disparo ou sistema de dano foi liberado.
+Base: v0.7.1. As animações, câmera, missão e joystick existentes foram preservados.
 
-NO GITHUB: envie APENAS estes 4 arquivos na raiz, substituindo os existentes: index.html, app.js, coldre.glb, tonfa.glb.
-Não apague tio-urso.glb nem os outros arquivos existentes.
-Se as texturas parecerem erradas, mantenha a v0.6 até conferirmos uma captura de tela do celular.
+CORREÇÕES:
+- Uma única tonfa.glb: o MESMO OBJETO muda do suporte esquerdo para a mão direita.
+- Sem tonfa geométrica diferente ao sacar.
+- Suporte deslocado para fora da coxa esquerda, junto ao cinto.
+- Coldre.glb reposicionado no quadril direito, sem liberar arma de fogo.
+- Punho direito estabilizado ao empunhar; dedos disponíveis flexionados com suavidade.
+
+NO GITHUB: faça upload do index.html e app.js substituindo os antigos.
+Os arquivos tonfa.glb e coldre.glb já enviados na v0.7.1 são os mesmos; não precisa reenviá-los.
+Não apague tio-urso.glb, style.css, tonfa.glb nem coldre.glb.
+
+Testes: visualize as costas e as laterais; selecione punhos e tonfa; faça combo; caminhe e corra.
+A posição exata no Android pode precisar de alguns centímetros de ajuste.
