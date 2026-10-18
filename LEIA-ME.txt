@@ -1,33 +1,11 @@
-TIO URSO: PATRULHA — V0.7 — CINTO CORRETO + BRAÇOS EM REPOUSO
+TIO URSO: PATRULHA — HOTFIX 0.7.1
 
-ALTERAÇÕES
-- A tonfa guardada fica no lado ESQUERDO do PRÓPRIO Tio Urso, mais alta,
-  lateralizada e levemente inclinada no suporte, sem atravessar a perna.
-- Coldre vazio provisório no lado DIREITO do cinto (pistola continua bloqueada).
-- Quando equipada, a tonfa acompanha a mão direita como na versão 0.6.
-- Ajuste sutil na curvatura dos dedos ao segurar a tonfa, usando os ossos existentes.
-- Idle relaxado: braços próximos ao corpo, respiração discreta e transições suaves.
-- Animações Walking, Running, Triple_Combo_Attack, joystick/corrida automática,
-  controles, missão e XP são mantidos.
-- Protótipo sem armas de fogo funcionais e sem dano aos cidadãos.
+Correção baseada na v0.7 sem perder as animações, a pose de descanso, a missão, o progresso e o joystick.
+- Tonfa guardada na lateral ESQUERDA do personagem, com modelo Meshy novo simplificado.
+- Coldre vazio Meshy novo à DIREITA.
+- Tonfa em uso permanece presa à mão direita, como estava funcionando na v0.6.
+- Nenhuma nova arma, disparo ou sistema de dano foi liberado.
 
-PARA TESTAR
-1. Fique parado sem a tonfa: confira braços relaxados e leve respiração.
-2. Gire a câmera: a tonfa deve ficar na ESQUERDA do personagem,
-   enquanto o coldre vazio permanece à DIREITA, independentemente da vista.
-3. Equipe a tonfa: ela deve aparecer na mão direita e acompanhar o combo.
-4. Guarde a tonfa: ela volta ao lado esquerdo do cinto, longe da perna.
-5. Confira andar, corrida automática, combo e missão 01.
-
-INSTALAR NO GITHUB PELO CELULAR
-- Faça backup dos arquivos da v0.6 antes de atualizar.
-- Extraia o ZIP e envie index.html, app.js, style.css e LEIA-ME.txt
-  à raiz do mesmo repositório tio-urso-patrulha. Substitua os existentes.
-- NÃO reenvie tio-urso.glb: o modelo 3D original não foi alterado.
-- Commit changes; depois verifique GitHub Pages.
-- Abra: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=07
-- Se a página continuar com v0.6, atualize ou abra uma aba anônima.
-
-NOTA
-Os ajustes são por código e dependem do esqueleto GLB atual do Meshy.
-Validação em Android ainda é necessária, principalmente a pegada dos dedos.
+NO GITHUB: envie APENAS estes 4 arquivos na raiz, substituindo os existentes: index.html, app.js, coldre.glb, tonfa.glb.
+Não apague tio-urso.glb nem os outros arquivos existentes.
+Se as texturas parecerem erradas, mantenha a v0.6 até conferirmos uma captura de tela do celular.

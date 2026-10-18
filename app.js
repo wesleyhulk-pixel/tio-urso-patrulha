@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.1: correção de encaixes; preserva animações, joystick e idle v0.7.
+// O bastão em uso continua como na v0.6 (estável). Modelos leves só para itens guardados.
 // v0.7: tonfa à ESQUERDA do personagem, coldre vazio à DIREITA e idle mais natural.
 // v0.6: tonfa presa ao osso real da mão e encaixe secundário no cinto.
 // v0.5: joystick analógico; empurre até a borda superior para corrida automática.
 // GLB do Tio Urso com Walking, Running e Triple_Combo_Attack preservado da v0.4.
 // Para trocar o personagem depois, altere somente o arquivo GLB e confira o eixo de orientação.
 const CHARACTER_FILE = './tio-urso.glb';
+const HOLSTER_FILE = './coldre.glb';
+const TONFA_BELT_FILE = './tonfa.glb';
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
@@ -320,18 +324,9 @@ function makeTonfa(){
   tonfaHolstered=buildTonfaModel();
   tonfaModel.visible=false;
   tonfaHolstered.visible=false;
-  // Coldre DIREITO ainda vazio: a pistola permanece bloqueada nesta fase.
-  // É só uma peça visual simples, sem arma ou disparos.
+  // O coldre só será mostrado quando o GLB correto estiver carregado.
+  // Nada de caixa provisória gigante, nem objetos sem ligação com o corpo.
   rightHolster=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.BoxGeometry(.16,.28,.10),
-      new THREE.MeshStandardMaterial({color:0x11191d,roughness:.89}));
-  body.position.set(0,-.11,0);rightHolster.add(body);
-  const lip=new THREE.Mesh(new THREE.BoxGeometry(.17,.042,.115),
-      new THREE.MeshStandardMaterial({color:0x333d44,roughness:.77}));
-  lip.position.set(0,.018,.004);rightHolster.add(lip);
-  const strap=new THREE.Mesh(new THREE.BoxGeometry(.19,.055,.14),
-      new THREE.MeshStandardMaterial({color:0x202a30,roughness:.86}));
-  strap.position.set(0,-.042,.0);rightHolster.add(strap);
   rightHolster.visible=false;
 }
 // GLTFLoader pode normalizar os nomes originais dos ossos (ex.: mixamorig:RightHand
@@ -391,22 +386,76 @@ function attachTonfaToRig(){
   const waistParent=hipBone || characterModel;
   waistParent.add(tonfaHolstered);
   waistParent.add(rightHolster);
+  // Medidas tomadas a partir do osso do quadril, NÃO das coordenadas da cena.
+  // +X = esquerda do Tio Urso, -X = direita do Tio Urso.
+  // Modelos 3D normalizados têm a origem no centro de sua própria geometria.
   if(hipBone){
-    tonfaHolstered.position.set(+.47,+.085,-.075); // quadril ESQUERDO, acima da coxa
-    rightHolster.position.set(-.435,-.035,-.065);   // coldre DIREITO, vazio
+    tonfaHolstered.position.set(+.245,-.065,-.005);
+    rightHolster.position.set(-.255,-.100,.025);
   }else{
-    tonfaHolstered.position.set(+.47,1.02,-.075);
-    rightHolster.position.set(-.435,.91,-.065);
+    tonfaHolstered.position.set(+.245,.92,-.005);
+    rightHolster.position.set(-.255,.86,.025);
   }
-  tonfaHolstered.rotation.set(.06,0,Math.PI+.34);
-  tonfaHolstered.scale.setScalar(.61);
-  rightHolster.rotation.set(0,0,-.07);
-  rightHolster.visible=true;
+  // Enquanto os acessórios externos carregam, mantém a tonfa simples recolhida.
+  tonfaHolstered.rotation.set(.03,0,Math.PI+.12);
+  tonfaHolstered.scale.setScalar(.62);
+  rightHolster.rotation.set(0,.25,-.11);
+  rightHolster.visible=false;
   refreshTonfaState();
-  console.info('Tonfa v0.7: mão:',rightHandBone.name,'quadril:',hipBone?.name||'modelo',
-    'suporte esquerdo / coldre direito.');
+  loadDetailedBeltAssets();
+  console.info('Tonfa v0.7.1: mão:',rightHandBone.name,'quadril:',hipBone?.name||'modelo',
+    'encaixes próximos ao cinto; coldre aparece após carregamento.');
   return true;
 }
+
+// GLBs enviados pelo usuário, simplificados para reduzir o custo no Android.
+// A geometria original de cada acessório vem centrada com sua própria escala.
+// Transformamos para medidas reais aproximadas (uma tonfa ~0,5 m, coldre ~0,3 m).
+function normalizeAccessoryScene(root, desiredLength, orientation){
+  const bounds=new THREE.Box3().setFromObject(root);
+  const center=bounds.getCenter(new THREE.Vector3());
+  const size=bounds.getSize(new THREE.Vector3());
+  const span=Math.max(size.x,size.y,size.z,.0001);
+  const centered=new THREE.Group();
+  const pivot=new THREE.Group();
+  centered.add(root);
+  root.position.sub(center);
+  centered.scale.setScalar(desiredLength/span);
+  // Tonfa foi produzida ao longo de X; colocar sua haste ao longo de Y.
+  if(orientation==='tonfa') pivot.rotation.z=-Math.PI/2;
+  pivot.add(centered);
+  root.traverse(o=>{if(o.isMesh){o.castShadow=false;o.frustumCulled=false;}});
+  return pivot;
+}
+function loadDetailedBeltAssets(){
+  const loader=new GLTFLoader();
+  // A TONFA da mão continua como na v0.6, com pegada já testada.
+  // Somente a tonfa GUARDADA recebe a nova malha.
+  loader.load(TONFA_BELT_FILE,gltf=>{
+    if(!tonfaHolstered || !characterModel)return;
+    const item=normalizeAccessoryScene(gltf.scene,.48,'tonfa');
+    tonfaHolstered.clear();
+    tonfaHolstered.add(item);
+    if(hipBone)tonfaHolstered.position.set(+.245,-.205,-.01);
+    else tonfaHolstered.position.set(+.245,.78,-.01);
+    tonfaHolstered.rotation.set(.05,.1,-.13);
+    tonfaHolstered.scale.setScalar(1);
+    refreshTonfaState();
+    console.info('Tonfa guardada: modelo GLB leve carregado, próximo ao quadril esquerdo.');
+  },undefined,err=>console.warn('Tonfa GLB indisponível, usando versão simplificada.',err));
+  // Coldre vazio real, do lado DIREITO; não libera a arma de fogo.
+  loader.load(HOLSTER_FILE,gltf=>{
+    if(!rightHolster || !characterModel)return;
+    const item=normalizeAccessoryScene(gltf.scene,.29,'holster');
+    rightHolster.clear();
+    rightHolster.add(item);
+    rightHolster.rotation.set(.04, .32, -.11);
+    rightHolster.scale.setScalar(1);
+    rightHolster.visible=true;
+    console.info('Coldre real GLB leve carregado à direita.');
+  },undefined,err=>{rightHolster.visible=false;console.warn('Coldre GLB indisponível, oculto para evitar bug.',err);});
+}
+
 function selectEquipment(item){
   if(item==='tonfa'&&talked.size<3){notify('Complete a missão comunitária para receber a tonfa.');return;}
   if(item==='tonfa' && !tonfaAttachedToHand){
@@ -611,7 +660,7 @@ function update(dt){
     actionEffect.position.set(.28,1.11,.83);
   }
   // Não alteramos a orientação da tonfa a cada quadro: o osso da mão já faz isso.
-  // A tonfa fica no lado esquerdo do cinto; o coldre vazio, à direita.
+  // A tonfa guardada e o coldre estão sob o osso do quadril; o bastão equipado fica na mão.
   // O modelo permanece assentado no piso, sem salto artificial.
   player.position.y=GROUND_Y;
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}
