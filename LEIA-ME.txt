@@ -1,0 +1,50 @@
+TIO URSO: PATRULHA — PROTÓTIPO 0.1
+=================================
+
+Conteúdo:
+- index.html : abertura e interface do jogo
+- app.js : motor do cenário, movimento, missões e carregamento do 3D
+- style.css : visual e controles adaptados para celular
+- tio-urso.glb : modelo do Meshy fornecido pelo usuário, com texturas reduzidas para 1K
+                      para funcionar melhor em celulares (o original permanece intacto)
+
+COMO PUBLICAR NO GITHUB PAGES (CELULAR OU COMPUTADOR)
+1. Extraia este ZIP. Não envie somente o ZIP ao repositório.
+2. Crie um repositório público no GitHub (por exemplo: tio-urso-patrulha).
+3. Faça o upload dos arquivos e da pasta "models" para a RAIZ do repositório.
+4. Confira se index.html está diretamente na raiz e se o arquivo GLB está em
+   tio-urso.glb.
+5. No GitHub: Settings > Pages > Build and deployment > Deploy from a branch;
+   selecione a branch main e a pasta /(root); depois Save.
+6. Abra o endereço informado em Settings > Pages quando a publicação concluir.
+7. No Android, gire para paisagem e toque em INICIAR PATRULHAMENTO.
+
+CONTROLES:
+- Joystick virtual à esquerda: andar.
+- CORRER: segure ao usar o joystick.
+- FALAR: próximo aos cidadãos, abre contato e adiciona 40 XP cada.
+- Arrastar dedo sobre o cenário (fora do joystick): girar a câmera.
+- Botão ⛶: tentar tela cheia.
+- Computador: WASD ou setas, SHIFT para correr, E para conversar.
+
+LIMITES DA VERSÃO 0.1:
+- O mapa é fictício, apenas um teste de jogabilidade (não representa Arapongas).
+- O personagem anda de modo simplificado, pois ainda NÃO tem rig/animações.
+- Somente uma missão de conversa com três cidadãos.
+- Ainda não há viatura, moto, física de trânsito ou mapa real.
+- A biblioteca Three.js é carregada por CDN; o usuário precisa estar online.
+- Progresso da missão/XP é salvo localmente no próprio navegador.
+
+IMPORTANTE: não abra index.html diretamente pelo aplicativo Arquivos do celular,
+porque navegadores costumam bloquear módulos e modelos em URLs file://.
+Use o endereço HTTPS do GitHub Pages.
+
+TROCANDO O PERSONAGEM DEPOIS:
+- Substitua tio-urso.glb por outro arquivo GLB com o mesmo nome.
+- Verifique a direção do rosto. Se necessário, ajuste MODEL_FACE_OFFSET em app.js.
+- A escala é ajustada automaticamente pela altura do modelo.
+- Para animações de verdade, será necessário rigging e formatos compatíveis.
+
+Créditos do modelo 3D: arquivo fornecido pelo usuário a partir do Meshy.
+
+VERSÃO CELULAR: todos os cinco arquivos ficam na raiz do repositório, sem pastas.

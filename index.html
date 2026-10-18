@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#081a2d" />
+  <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
+  <title>Tio Urso: Patrulha | Protótipo 0.1</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main id="game" aria-label="Cenário 3D de patrulhamento">
+    <div id="view"></div>
+
+    <header id="top-ui">
+      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.1 • CENÁRIO DE TESTE</small></div></div>
+      <div class="score"><span id="level">NÍVEL 1</span><div class="xpbar"><span id="xp-fill"></span></div><span id="xp-label">0 XP</span></div>
+      <button id="full" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button>
+    </header>
+
+    <div id="mission"><div class="mission-tag">📻 MISSÃO 01</div><strong>Contato comunitário</strong><small>Converse com 3 cidadãos</small><div class="mission-progress"><span id="mission-count">0/3</span><span id="mission-status">Em andamento</span></div></div>
+    <div class="map-wrap"><canvas id="minimap" width="180" height="180" aria-label="Minimapa da área de teste"></canvas><small>AVENIDA DE TESTE</small></div>
+    <div id="action-hint" aria-live="polite"></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <div class="touch-ui" id="touch-ui">
+      <div class="joystick" id="joystick" aria-label="Controle de movimento"><div class="stick" id="stick"></div></div>
+      <div class="buttons">
+        <button id="run" class="round-button run" type="button"><span>🏃</span><small>CORRER</small></button>
+        <button id="interact" class="round-button interact" type="button"><span>✋</span><small>FALAR</small></button>
+      </div>
+    </div>
+
+    <div id="intro" class="overlay">
+      <div class="intro-card">
+        <span class="intro-paw">🐾</span>
+        <h1>TIO URSO<span>PATRULHA</span></h1>
+        <p>O primeiro dia de serviço começa aqui.</p>
+        <div class="intro-divider"></div>
+        <small id="load-info">Preparando o cenário 3D...</small>
+        <button id="start" type="button" disabled>CARREGANDO...</button>
+        <p class="micro">Protótipo de movimentação • Cidade fictícia de testes<br/>As ruas reais de Arapongas serão adicionadas depois.</p>
+      </div>
+    </div>
+
+    <div id="rotate-hint"><div><span>📱 ↻</span><b>Gire o celular para horizontal</b><p>Este jogo foi preparado para o modo paisagem.</p><button id="ignore-rotate">Continuar assim mesmo</button></div></div>
+    <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
