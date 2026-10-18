@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.3: recuperação sem mexer no esqueleto/dedos; encaixes estáveis no corpo.
+// Tonfa e coldre GLB originais, texturas e animações mantidos.
 // v0.7.2: uma tonfa 3D única, alternando entre suporte esquerdo e mão direita.
 // Coldre Meshy à direita; controle de inclinação do punho e dedos ao empunhar.
 // v0.7.1: correção de encaixes; preserva animações, joystick e idle v0.7.
@@ -55,10 +57,9 @@ const COMBO_PLAYBACK_RATE = 1.8;
 let equipped = 'punhos';
 let tonfaModel = null, rightHolster = null, actionEffect = null;
 let tonfaBeltSocket=null, tonfaHandSocket=null, tonfaAssetLoaded=false;
-let rightHandRestQuat=null;
-let gripBlend = 0;
-const grippingFingers = [];
 let rightHandBone = null, hipBone = null;
+// A pose dos dedos e punho fica 100% com o AnimationMixer original:
+// manipulações multiplicativas de quaternion acumulavam torções ao longo dos frames.
 
 let animVars = {
   phase: {value:0}, amount: {value:0}, action: {value:0}
@@ -340,71 +341,79 @@ function findRigBone(root, target){
   root.traverse(node=>{if(!fallback && strip(node.name)===expected) fallback=node;});
   return fallback;
 }
-// Convenção do GLB do personagem: LeftUpLeg tem X positivo, logo +X é
-// seu lado esquerdo e -X é seu lado direito, independentemente da câmera.
-const BELT_TONFA = {x:.365, y:-.105, z:-.105};
-const BELT_HOLSTER = {x:-.335, y:-.045, z:-.095};
-
-function refreshTonfaState(){
-  if(!tonfaModel || !tonfaHandSocket || !tonfaBeltSocket)return;
-  const canUse = talked.size >= 3 && tonfaAttachedToHand;
-  const inHand = canUse && equipped==='tonfa';
-  const targetSocket = inHand ? tonfaHandSocket : tonfaBeltSocket;
-  if(tonfaModel.parent!==targetSocket){
-    // Reparentar muda apenas o ponto de fixação, não o objeto ou sua malha.
-    targetSocket.add(tonfaModel);
-    tonfaModel.position.set(0,0,0);
-    tonfaModel.rotation.set(0,0,0);
-    tonfaModel.scale.set(1,1,1);
+// ACESSÓRIOS: posição relativa ao corpo (raiz do GLB), NÃO ao quadril animado.
+// No arquivo do Tio Urso +X corresponde ao lado esquerdo dele, visto por trás.
+// Usar a raiz elimina os deslocamentos inesperados da orientação do osso Hips.
+// Valores em unidades do GLB original. O jogo escala o modelo inteiro de forma uniforme.
+const BELT_TONFA = {x:.475, y:.815, z:-.075}; // esquerda, fora da coxa
+const BELT_HOLSTER = {x:-.450, y:.855, z:-.045}; // direita, linha do cinto
+const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v073';
+let accessoryAdjustments = null;
+function loadAccessoryAdjustments(){
+  try {
+    const saved=JSON.parse(localStorage.getItem(ACCESSORY_ADJUST_KEY)||'null');
+    if(saved && ['tonfa','coldre'].every(k=>saved[k] && ['x','y','z'].every(v=>Number.isFinite(saved[k][v]))))return saved;
+  }catch(e){}
+  return {tonfa:{...BELT_TONFA},coldre:{...BELT_HOLSTER}};
+}
+accessoryAdjustments=loadAccessoryAdjustments();
+function applyBeltPlacement(){
+  if(tonfaBeltSocket){
+    const p=accessoryAdjustments.tonfa;
+    tonfaBeltSocket.position.set(p.x,p.y,p.z);
+    tonfaBeltSocket.rotation.set(.02,-.06,-.12);
   }
-  tonfaModel.visible=canUse && tonfaAssetLoaded;
+  if(rightHolster){
+    const p=accessoryAdjustments.coldre;
+    rightHolster.position.set(p.x,p.y,p.z);
+    rightHolster.rotation.set(.03,-.18,-.08);
+  }
+}
+function refreshTonfaState(){
+  if(!tonfaModel || !tonfaHandSocket || !tonfaBeltSocket) return;
+  const readyTonfa=talked.size>=3 && tonfaAttachedToHand && tonfaAssetLoaded;
+  const inHand=readyTonfa && equipped==='tonfa';
+  const socket=inHand ? tonfaHandSocket : tonfaBeltSocket;
+  if(tonfaModel.parent!==socket){
+    socket.add(tonfaModel); // MOVE o mesmo objeto GLB, não duplica
+  }
+  // Mesma peça 3D e textura: única diferença é o ponto de apoio.
+  if(inHand){
+    // A empunhadura lateral fica próxima da palma em vez de acima dos dedos.
+    tonfaModel.position.set(0,-.125,-.008);
+  }else{
+    tonfaModel.position.set(0,0,0);
+  }
+  tonfaModel.quaternion.identity();
+  tonfaModel.scale.setScalar(1);
+  tonfaModel.visible=readyTonfa;
 }
 function attachTonfaToRig(){
   rightHandBone=findRigBone(characterModel,'mixamorig:RightHand');
   hipBone=findRigBone(characterModel,'mixamorig:Hips');
   if(!rightHandBone || !hipBone){
     tonfaAttachedToHand=false;
-    console.warn('Equipamentos: ossos de mão/quadril ausentes; ocultando acessórios.');
+    console.warn('Rig ausente; não posicionar acessórios flutuando.');
     return false;
   }
   tonfaAttachedToHand=true;
-  rightHandRestQuat=rightHandBone.quaternion.clone();
-  hipBone.add(tonfaBeltSocket);
-  hipBone.add(rightHolster);
+  // Esquerda e direita fixas no tronco/cinto, que é independente das
+  // oscilações e rotações do osso quadril durante caminhada e combo.
+  characterModel.add(tonfaBeltSocket);
+  characterModel.add(rightHolster);
   rightHandBone.add(tonfaHandSocket);
-
-  // Fixação do BASTÃO GUARDADO no quadril esquerdo. Centro fora da lateral
-  // da perna, atrás da costura, no nível do cinto. Comprimento abaixo do cinto.
-  tonfaBeltSocket.position.set(BELT_TONFA.x,BELT_TONFA.y,BELT_TONFA.z);
-  tonfaBeltSocket.rotation.set(.06,-.20,-.10);
-  // Encaixe da palma. Mesmo GLB, já orientado com haste na vertical.
-  // Eixo local Y do osso da mão prossegue em direção aos dedos.
+  // Apenas encaixe da peça — sem forçar rotação do punho nem dedos do urso.
   tonfaHandSocket.position.set(-.015,.085,.024);
   tonfaHandSocket.rotation.set(.04,0,-.12);
-
-  // Coldre vazio do lado DIREITO, com a parte superior na linha do cinto.
-  rightHolster.position.set(BELT_HOLSTER.x,BELT_HOLSTER.y,BELT_HOLSTER.z);
-  rightHolster.rotation.set(.03,-.15,-.07);
   rightHolster.visible=false;
-
-  // O esqueleto disponível tem dedos Middle, Pinky e Thumb; não inventamos
-  // bones Ring e Index. Flexão local progressiva para uma pegada mais firme.
-  grippingFingers.length=0;
-  for(const [name,angle] of [
-    ['RightHandMiddle1',.28], ['RightHandMiddle2',.44], ['RightHandMiddle3',.38],
-    ['RightHandPinky1',.27],  ['RightHandPinky2',.43],  ['RightHandPinky3',.36],
-    ['RightHandThumb1',-.13], ['RightHandThumb2',-.22], ['RightHandThumb3',-.16],
-  ]){
-    const bone=findRigBone(characterModel,`mixamorig:${name}`);
-    if(bone)grippingFingers.push({bone,delta:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle)});
-  }
+  applyBeltPlacement();
   refreshTonfaState();
   loadDetailedBeltAssets();
   return true;
 }
 
-// O modelo da tonfa original está ao longo do eixo X. A rotação de -90°
-// transforma o eixo comprido em Y; a geometria é centralizada UMA vez.
+// Mantém materiais PBR/texturas do Meshy. Centraliza e escala a geometria,
+// sem reconstruir a tonfa ou substituir por tubos geométricos sem textura.
 function normalizeAccessoryScene(root, desiredLength, orientation){
   const bounds=new THREE.Box3().setFromObject(root);
   const center=bounds.getCenter(new THREE.Vector3());
@@ -417,7 +426,7 @@ function normalizeAccessoryScene(root, desiredLength, orientation){
   centered.scale.setScalar(desiredLength/span);
   if(orientation==='tonfa')pivot.rotation.z=-Math.PI/2;
   pivot.add(centered);
-  root.traverse(o=>{if(o.isMesh){o.castShadow=false;o.frustumCulled=false;}});
+  root.traverse(o=>{if(o.isMesh){o.castShadow=false;}});
   return pivot;
 }
 function loadDetailedBeltAssets(){
@@ -429,23 +438,58 @@ function loadDetailedBeltAssets(){
     tonfaModel.add(item);
     tonfaAssetLoaded=true;
     refreshTonfaState();
-    console.info('v0.7.2: tonfa ÚNICA carregada, mão e cinto usam a mesma malha.');
+    console.info('Tonfa v0.7.3: mesma malha texturizada no cinto/mão.');
   },undefined,error=>{
-    // Nunca substituímos a tonfa real por um desenho diferente.
-    tonfaModel.visible=false;
-    console.warn('Arquivo tonfa.glb indisponível; ocultando acessório.',error);
-    notify('Não foi possível carregar tonfa.glb; verifique o GitHub.',4000);
+    tonfaAssetLoaded=false;tonfaModel.visible=false;
+    console.warn('Não foi possível carregar tonfa.glb.',error);
+    notify('Não foi possível carregar tonfa.glb. Verifique os arquivos.',4000);
   });
   loader.load(HOLSTER_FILE,gltf=>{
     if(!rightHolster || !characterModel)return;
-    const item=normalizeAccessoryScene(gltf.scene,.27,'holster');
+    const item=normalizeAccessoryScene(gltf.scene,.255,'holster');
     rightHolster.clear();
     rightHolster.add(item);
     rightHolster.visible=true;
   },undefined,error=>{
     rightHolster.visible=false;
-    console.warn('Coldre GLB indisponível.',error);
+    console.warn('Não foi possível carregar coldre.glb.',error);
   });
+}
+// Ajuste fino opcional pelo telefone: abra ?ajuste=1.
+// Permite corrigir poucos centímetros sem remontar ou reenviar o jogo.
+function enableAccessoryCalibration(){
+  if(!new URLSearchParams(location.search).has('ajuste'))return;
+  const panel=document.createElement('div');
+  panel.id='accessory-calibration';
+  panel.style.cssText='position:fixed;right:8px;top:24%;z-index:99999;max-width:190px;padding:9px;background:rgba(8,25,39,.9);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;';
+  panel.innerHTML=`<b>AJUSTAR EQUIPAMENTO</b><select id="cal-item" style="display:block;width:100%;margin:7px 0;color:#111;background:#fff"><option value="tonfa">Tonfa esquerda</option><option value="coldre">Coldre direito</option></select><small id="cal-xyz"></small><div id="cal-buttons" style="display:grid;grid-template-columns:repeat(2,1fr);gap:3px;margin-top:6px"></div><button id="cal-reset" type="button" style="margin-top:6px">Restaurar posição</button>`;
+  document.body.append(panel);
+  const buttons=panel.querySelector('#cal-buttons');
+  const show=()=>{
+    const p=accessoryAdjustments[panel.querySelector('#cal-item').value];
+    panel.querySelector('#cal-xyz').textContent=`X ${p.x.toFixed(3)} / Y ${p.y.toFixed(3)} / Z ${p.z.toFixed(3)}`;
+  };
+  const change=(axis,delta)=>{
+    const p=accessoryAdjustments[panel.querySelector('#cal-item').value];
+    p[axis]=Math.round((p[axis]+delta)*1000)/1000;
+    p[axis]=THREE.MathUtils.clamp(p[axis],-1.5,2);
+    applyBeltPlacement();
+    try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}catch(e){}
+    show();
+  };
+  for(const [label,axis,delta] of [['Lado -','x',-.025],['Lado +','x',.025],['Altura -','y',-.025],['Altura +','y',.025],['Frente -','z',-.025],['Frente +','z',.025]]){
+    const btn=document.createElement('button');btn.type='button';btn.textContent=label;
+    btn.style.cssText='padding:6px 2px;color:#0d2133;background:#f5d47b;border-radius:5px;';
+    btn.addEventListener('click',()=>change(axis,delta));buttons.append(btn);
+  }
+  panel.querySelector('#cal-item').addEventListener('change',show);
+  panel.querySelector('#cal-reset').addEventListener('click',()=>{
+    accessoryAdjustments={tonfa:{...BELT_TONFA},coldre:{...BELT_HOLSTER}};
+    applyBeltPlacement();
+    try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}catch(e){}
+    show();
+  });
+  show();
 }
 
 function selectEquipment(item){
@@ -629,18 +673,9 @@ function update(dt){
     walkAnim.timeScale=THREE.MathUtils.clamp(speed/PLAYER_SPEED,.6,1.3);
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
-    // Fixação suave do punho enquanto empunha a tonfa: amortecer a rotação
-    // da mão gerada pelos clips, SEM paralisar antebraço, cotovelo e ombro.
-    // Fazemos DEPOIS do mixer para não reescrever os arquivos de animação.
-    gripBlend+=(Number(equipped==='tonfa')-gripBlend)*(1-Math.exp(-dt*9));
-    if(rightHandBone && rightHandRestQuat && gripBlend>.001){
-      const wristCorrection=comboActive ? .68 : .82;
-      rightHandBone.quaternion.slerp(rightHandRestQuat,wristCorrection*gripBlend);
-    }
-    for(const {bone,delta} of grippingFingers){
-      const q=new THREE.Quaternion().identity().slerp(delta,gripBlend);
-      bone.quaternion.multiply(q).normalize();
-    }
+    // IMPORTANTE: não alterar dedos/punho após AnimationMixer.update().
+    // Antes eram multiplicados a cada frame, acumulando torções e deformações.
+    // As mãos continuam nas poses originais corretas dos clips importados.
   } else {
     animVars.phase.value=animationTime;
     animVars.amount.value=walkBlend;
@@ -752,6 +787,7 @@ function installControls(){
 try{
   installControls();
   const loaded=await buildScene();
+  enableAccessoryCalibration();
   ready=true;introButton.disabled=false;
   introButton.textContent='INICIAR PATRULHAMENTO';
   el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';

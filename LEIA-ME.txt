@@ -1,17 +1,30 @@
-TIO URSO: PATRULHA — 0.7.2
+TIO URSO: PATRULHA — v0.7.3 • RECUPERAÇÃO DOS EQUIPAMENTOS
 
-Base: v0.7.1. As animações, câmera, missão e joystick existentes foram preservados.
+Esta atualização modifica somente index.html e app.js. Reutiliza os GLBs
+já enviados: tio-urso.glb, tonfa.glb e coldre.glb, preservando suas texturas.
 
-CORREÇÕES:
-- Uma única tonfa.glb: o MESMO OBJETO muda do suporte esquerdo para a mão direita.
-- Sem tonfa geométrica diferente ao sacar.
-- Suporte deslocado para fora da coxa esquerda, junto ao cinto.
-- Coldre.glb reposicionado no quadril direito, sem liberar arma de fogo.
-- Punho direito estabilizado ao empunhar; dedos disponíveis flexionados com suavidade.
+Correções:
+- Tonfa 3D original única: reaproveitada no cinto e na mão direita.
+- Tonfa guardada ancorada à raiz do corpo à esquerda, não ao osso do quadril.
+- Coldre 3D original ancorado à raiz do corpo à direita, não ao osso do quadril.
+- Removidos ajustes acumulativos de quaternions de dedos e punho; as mãos
+  voltam às animações originais, evitando a deformação progressiva.
+- Caminhada, corrida automática, combo e missão mantidos.
+- A arma de fogo permanece bloqueada.
 
-NO GITHUB: faça upload do index.html e app.js substituindo os antigos.
-Os arquivos tonfa.glb e coldre.glb já enviados na v0.7.1 são os mesmos; não precisa reenviá-los.
-Não apague tio-urso.glb, style.css, tonfa.glb nem coldre.glb.
+BÔNUS — AJUSTE FINO OPCIONAL (somente no seu celular):
+Após atualizar, abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=073
+O painel permite mover a tonfa do cinto e o coldre em passos de ~2,5 cm nas
+coordenadas originais do modelo, sem baixar novos ZIPs. As posições ficam
+salvas somente nesse navegador. O endereço normal do jogo não mostra o painel.
+Use Restaurar posição se desejar voltar às coordenadas padrão.
 
-Testes: visualize as costas e as laterais; selecione punhos e tonfa; faça combo; caminhe e corra.
-A posição exata no Android pode precisar de alguns centímetros de ajuste.
+GITHUB:
+1. Extraia o ZIP.
+2. Faça upload de index.html e app.js na raiz do repositório.
+3. Confirme em Commit changes.
+4. Não apague nem substitua tio-urso.glb, tonfa.glb, coldre.glb ou style.css.
+
+NOTA: Código verificado, mas a posição dos acessórios e a pegada precisam de
+uma conferência visual no Android. Esta versão privilegia estabilidade;
+não promete mão perfeitamente fechada sem animação dedicada.
