@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.4: ajuste fino de posição E rotação XYZ para tonfa guardada/coldre.
+// Persiste localmente, importa posições antigas da v0.7.3, sem mudar mão/rigging.
 // v0.7.3: recuperação sem mexer no esqueleto/dedos; encaixes estáveis no corpo.
 // Tonfa e coldre GLB originais, texturas e animações mantidos.
 // v0.7.2: uma tonfa 3D única, alternando entre suporte esquerdo e mão direita.
@@ -345,30 +347,69 @@ function findRigBone(root, target){
 // No arquivo do Tio Urso +X corresponde ao lado esquerdo dele, visto por trás.
 // Usar a raiz elimina os deslocamentos inesperados da orientação do osso Hips.
 // Valores em unidades do GLB original. O jogo escala o modelo inteiro de forma uniforme.
-const BELT_TONFA = {x:.475, y:.815, z:-.075}; // esquerda, fora da coxa
-const BELT_HOLSTER = {x:-.450, y:.855, z:-.045}; // direita, linha do cinto
-const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v073';
+// Coordenadas em unidades do GLB original; rotação em GRAUS para facilitar
+// o ajuste no celular. O eixo Y gira o acessório em torno da vertical.
+const BELT_TONFA = Object.freeze({x:.475, y:.815, z:-.075, rx:1.15, ry:-3.44, rz:-6.88});
+// Coldre começa virado ~180° no eixo vertical, em direção às costas.
+// O ângulo exato depende da orientação exportada pelo Meshy, então é ajustável.
+const BELT_HOLSTER = Object.freeze({x:-.450, y:.855, z:-.045, rx:1.72, ry:169.69, rz:-4.58});
+const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v074';
+const ACCESSORY_LEGACY_KEY = 'tio-urso-acessorios-v073';
+const ACCESSORY_NAMES = ['tonfa','coldre'];
+const AXES_POSITION = ['x','y','z'];
+const AXES_ROTATION = ['rx','ry','rz'];
+const accessoryDefaults = {tonfa:BELT_TONFA,coldre:BELT_HOLSTER};
 let accessoryAdjustments = null;
+function normalizeAngleDegrees(value){
+  // Sempre no intervalo [-180,180], sem somar indefinidamente.
+  return Math.round((((value+180)%360+360)%360-180)*100)/100;
+}
 function loadAccessoryAdjustments(){
+  let saved=null;
   try {
-    const saved=JSON.parse(localStorage.getItem(ACCESSORY_ADJUST_KEY)||'null');
-    if(saved && ['tonfa','coldre'].every(k=>saved[k] && ['x','y','z'].every(v=>Number.isFinite(saved[k][v]))))return saved;
-  }catch(e){}
-  return {tonfa:{...BELT_TONFA},coldre:{...BELT_HOLSTER}};
+    saved=JSON.parse(localStorage.getItem(ACCESSORY_ADJUST_KEY)||'null');
+    if(!saved) saved=JSON.parse(localStorage.getItem(ACCESSORY_LEGACY_KEY)||'null');
+  }catch(e){ /* Navegação privativa pode bloquear armazenamento. */ }
+  const positions={};
+  for(const key of ACCESSORY_NAMES){
+    const defaults=accessoryDefaults[key];
+    const previous=saved && typeof saved[key]==='object' ? saved[key] : {};
+    positions[key]={};
+    for(const axis of AXES_POSITION){
+      positions[key][axis]=Number.isFinite(previous[axis])
+        ? THREE.MathUtils.clamp(previous[axis],-1.5,2) : defaults[axis];
+    }
+    for(const axis of AXES_ROTATION){
+      positions[key][axis]=Number.isFinite(previous[axis])
+        ? normalizeAngleDegrees(previous[axis]) : defaults[axis];
+    }
+  }
+  return positions;
 }
 accessoryAdjustments=loadAccessoryAdjustments();
+function saveAccessoryAdjustments(){
+  try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}
+  catch(e){console.warn('Ajustes aplicados nesta sessão, mas não salvos:',e);}
+}
 function applyBeltPlacement(){
   if(tonfaBeltSocket){
     const p=accessoryAdjustments.tonfa;
     tonfaBeltSocket.position.set(p.x,p.y,p.z);
-    tonfaBeltSocket.rotation.set(.02,-.06,-.12);
+    tonfaBeltSocket.rotation.set(
+      THREE.MathUtils.degToRad(p.rx),
+      THREE.MathUtils.degToRad(p.ry),
+      THREE.MathUtils.degToRad(p.rz),'XYZ');
   }
   if(rightHolster){
     const p=accessoryAdjustments.coldre;
     rightHolster.position.set(p.x,p.y,p.z);
-    rightHolster.rotation.set(.03,-.18,-.08);
+    rightHolster.rotation.set(
+      THREE.MathUtils.degToRad(p.rx),
+      THREE.MathUtils.degToRad(p.ry),
+      THREE.MathUtils.degToRad(p.rz),'XYZ');
   }
 }
+
 function refreshTonfaState(){
   if(!tonfaModel || !tonfaHandSocket || !tonfaBeltSocket) return;
   const readyTonfa=talked.size>=3 && tonfaAttachedToHand && tonfaAssetLoaded;
@@ -459,35 +500,105 @@ function loadDetailedBeltAssets(){
 // Permite corrigir poucos centímetros sem remontar ou reenviar o jogo.
 function enableAccessoryCalibration(){
   if(!new URLSearchParams(location.search).has('ajuste'))return;
-  const panel=document.createElement('div');
+  const panel=document.createElement('aside');
   panel.id='accessory-calibration';
-  panel.style.cssText='position:fixed;right:8px;top:24%;z-index:99999;max-width:190px;padding:9px;background:rgba(8,25,39,.9);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;';
-  panel.innerHTML=`<b>AJUSTAR EQUIPAMENTO</b><select id="cal-item" style="display:block;width:100%;margin:7px 0;color:#111;background:#fff"><option value="tonfa">Tonfa esquerda</option><option value="coldre">Coldre direito</option></select><small id="cal-xyz"></small><div id="cal-buttons" style="display:grid;grid-template-columns:repeat(2,1fr);gap:3px;margin-top:6px"></div><button id="cal-reset" type="button" style="margin-top:6px">Restaurar posição</button>`;
+  panel.setAttribute('aria-label','Ajuste fino dos equipamentos 3D');
+  panel.style.cssText='position:fixed;right:8px;top:20%;z-index:99999;width:min(224px,58vw);max-height:65vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
+  panel.innerHTML=`
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+      <b>AJUSTE FINO 0.7.4</b>
+      <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
+    </div>
+    <div id="cal-body">
+      <label style="display:block;margin-top:7px">Equipamento
+        <select id="cal-item" style="display:block;width:100%;margin:4px 0 8px;padding:5px;color:#111;background:#fff;border-radius:5px">
+          <option value="tonfa">Tonfa • cinto esquerdo</option>
+          <option value="coldre">Coldre • cinto direito</option>
+        </select>
+      </label>
+      <div id="cal-readout" aria-live="polite" style="font-size:11px;line-height:1.6;margin:6px 0"></div>
+      <details open><summary style="font-weight:700;padding:5px 0;cursor:pointer">↔ POSIÇÃO XYZ</summary>
+        <div id="cal-pos-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
+        <button id="cal-reset-pos" type="button" class="cal-secondary">Restaurar posição</button>
+      </details>
+      <details open><summary style="font-weight:700;padding:6px 0;cursor:pointer">↻ ROTAÇÃO XYZ</summary>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin:5px 0">Passo do giro
+          <select id="cal-step" style="padding:5px;color:#111;background:white;border-radius:5px">
+            <option value="1">1° (fino)</option>
+            <option value="5" selected>5°</option>
+            <option value="15">15°</option>
+          </select>
+        </label>
+        <div id="cal-rot-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
+        <button id="cal-rotate-back" type="button" class="cal-secondary">Girar Y +180°</button>
+        <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar rotação</button>
+      </details>
+      <button id="cal-copy" type="button" class="cal-secondary">Copiar meus ajustes</button>
+      <small style="display:block;margin-top:5px;opacity:.85">Salvo só neste navegador. Ajuste o coldre girando Y; na tonfa experimente X e Z.</small>
+      <small id="cal-message" role="status" style="display:block;min-height:12px;margin-top:4px;color:#ffe19b"></small>
+    </div>`;
   document.body.append(panel);
-  const buttons=panel.querySelector('#cal-buttons');
+  for(const btn of panel.querySelectorAll('.cal-secondary')){
+    btn.style.cssText='display:block;width:100%;margin-top:6px;padding:6px 3px;border-radius:5px;background:#384e62;color:white;border:1px solid #8195a2;font-size:11px;';
+  }
+  const choice=panel.querySelector('#cal-item');
+  const label=panel.querySelector('#cal-readout');
+  const message=panel.querySelector('#cal-message');
   const show=()=>{
-    const p=accessoryAdjustments[panel.querySelector('#cal-item').value];
-    panel.querySelector('#cal-xyz').textContent=`X ${p.x.toFixed(3)} / Y ${p.y.toFixed(3)} / Z ${p.z.toFixed(3)}`;
+    const p=accessoryAdjustments[choice.value];
+    label.innerHTML=`<span>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}</span><br><span>Giro: X ${p.rx.toFixed(1)}° · Y ${p.ry.toFixed(1)}° · Z ${p.rz.toFixed(1)}°</span>`;
   };
   const change=(axis,delta)=>{
-    const p=accessoryAdjustments[panel.querySelector('#cal-item').value];
-    p[axis]=Math.round((p[axis]+delta)*1000)/1000;
-    p[axis]=THREE.MathUtils.clamp(p[axis],-1.5,2);
+    const p=accessoryAdjustments[choice.value];
+    const next=p[axis]+delta;
+    p[axis]=AXES_ROTATION.includes(axis)
+      ? normalizeAngleDegrees(next)
+      : Math.round(THREE.MathUtils.clamp(next,-1.5,2)*1000)/1000;
     applyBeltPlacement();
-    try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}catch(e){}
+    saveAccessoryAdjustments();
+    message.textContent='';
     show();
   };
-  for(const [label,axis,delta] of [['Lado -','x',-.025],['Lado +','x',.025],['Altura -','y',-.025],['Altura +','y',.025],['Frente -','z',-.025],['Frente +','z',.025]]){
-    const btn=document.createElement('button');btn.type='button';btn.textContent=label;
-    btn.style.cssText='padding:6px 2px;color:#0d2133;background:#f5d47b;border-radius:5px;';
-    btn.addEventListener('click',()=>change(axis,delta));buttons.append(btn);
+  const addButton=(parent,text,axis,direction,isRotation)=>{
+    const btn=document.createElement('button');
+    btn.type='button';btn.textContent=text;
+    btn.style.cssText='min-height:33px;padding:5px 2px;color:#0d2133;background:#f5d47b;border-radius:5px;font:12px system-ui;';
+    btn.addEventListener('click',()=>{
+      const step=isRotation ? Number(panel.querySelector('#cal-step').value) : .025;
+      change(axis,direction*step);
+    });
+    parent.append(btn);
+  };
+  const pos=panel.querySelector('#cal-pos-buttons');
+  for(const [name,axis] of [['Lado','x'],['Altura','y'],['Frente','z']]){
+    addButton(pos,`${name} −`,axis,-1,false);
+    addButton(pos,`${name} +`,axis,1,false);
   }
-  panel.querySelector('#cal-item').addEventListener('change',show);
-  panel.querySelector('#cal-reset').addEventListener('click',()=>{
-    accessoryAdjustments={tonfa:{...BELT_TONFA},coldre:{...BELT_HOLSTER}};
-    applyBeltPlacement();
-    try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}catch(e){}
-    show();
+  const rot=panel.querySelector('#cal-rot-buttons');
+  for(const axis of ['rx','ry','rz']){
+    const name=axis.slice(1).toUpperCase();
+    addButton(rot,`Giro ${name} −`,axis,-1,true);
+    addButton(rot,`Giro ${name} +`,axis,1,true);
+  }
+  choice.addEventListener('change',()=>{message.textContent='';show();});
+  panel.querySelector('#cal-rotate-back').addEventListener('click',()=>change('ry',180));
+  const resetAxes=(axes)=>{
+    const key=choice.value;
+    for(const axis of axes)accessoryAdjustments[key][axis]=accessoryDefaults[key][axis];
+    applyBeltPlacement();saveAccessoryAdjustments();show();
+    message.textContent='Apenas este equipamento foi restaurado.';
+  };
+  panel.querySelector('#cal-reset-pos').addEventListener('click',()=>resetAxes(AXES_POSITION));
+  panel.querySelector('#cal-reset-rot').addEventListener('click',()=>resetAxes(AXES_ROTATION));
+  panel.querySelector('#cal-copy').addEventListener('click',async()=>{
+    const result=JSON.stringify(accessoryAdjustments,null,2);
+    try{await navigator.clipboard.writeText(result);message.textContent='Posições e rotações copiadas!';}
+    catch(e){message.textContent='Cópia indisponível neste navegador.';}
+  });
+  panel.querySelector('#cal-collapse').addEventListener('click',e=>{
+    const body=panel.querySelector('#cal-body');
+    body.hidden=!body.hidden;
+    e.currentTarget.textContent=body.hidden?'+':'−';
   });
   show();
 }
@@ -692,7 +803,7 @@ function update(dt){
     actionEffect.position.set(.28,1.11,.83);
   }
   // Não alteramos a orientação da tonfa a cada quadro: o osso da mão já faz isso.
-  // A tonfa guardada e o coldre estão sob o osso do quadril; o bastão equipado fica na mão.
+  // A tonfa guardada e o coldre estão na raiz do modelo; o bastão equipado fica na mão.
   // O modelo permanece assentado no piso, sem salto artificial.
   player.position.y=GROUND_Y;
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}

@@ -1,30 +1,32 @@
-TIO URSO: PATRULHA — v0.7.3 • RECUPERAÇÃO DOS EQUIPAMENTOS
+TIO URSO: PATRULHA — v0.7.4 | AJUSTE FINO DE ROTAÇÃO
 
-Esta atualização modifica somente index.html e app.js. Reutiliza os GLBs
-já enviados: tio-urso.glb, tonfa.glb e coldre.glb, preservando suas texturas.
+Este ZIP contém APENAS index.html e app.js para substituir no GitHub.
+Não apague nem substitua os modelos tio-urso.glb, tonfa.glb ou coldre.glb.
+As texturas, caminhada, corrida, golpes e missões permanecem inalterados.
 
-Correções:
-- Tonfa 3D original única: reaproveitada no cinto e na mão direita.
-- Tonfa guardada ancorada à raiz do corpo à esquerda, não ao osso do quadril.
-- Coldre 3D original ancorado à raiz do corpo à direita, não ao osso do quadril.
-- Removidos ajustes acumulativos de quaternions de dedos e punho; as mãos
-  voltam às animações originais, evitando a deformação progressiva.
-- Caminhada, corrida automática, combo e missão mantidos.
-- A arma de fogo permanece bloqueada.
+NOVIDADES:
+- Painel de calibração por celular: posição X/Y/Z e rotação X/Y/Z.
+- Giros em passos de 1°, 5° ou 15°, mais botão para girar Y +180°.
+- Seletor para tonfa guardada (esquerda do personagem) e coldre (direita).
+- Restaurar posição e restaurar rotação SOMENTE do equipamento selecionado.
+- Copiar valores de ajustes para enviar em conversa ou registrar valores.
+- As posições já salvas na v0.7.3 são importadas automaticamente; nenhuma mudança
+  no estado das mãos ou dos encaixes da tonfa equipada.
+- Padrão do coldre com rotação Y ~170°, aproximadamente 180° em relação à v0.7.3;
+  caso não esteja correto, use o controle no celular.
 
-BÔNUS — AJUSTE FINO OPCIONAL (somente no seu celular):
-Após atualizar, abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=073
-O painel permite mover a tonfa do cinto e o coldre em passos de ~2,5 cm nas
-coordenadas originais do modelo, sem baixar novos ZIPs. As posições ficam
-salvas somente nesse navegador. O endereço normal do jogo não mostra o painel.
-Use Restaurar posição se desejar voltar às coordenadas padrão.
+COMO ATUALIZAR:
+1) Extraia o ZIP no celular.
+2) Na raiz do repositório Github, envie index.html e app.js.
+3) Confirme o Commit changes.
+4) Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=074
+5) Se o jogo já estava aberto, feche a aba e reabra para atualizar.
+6) Selecione Tonfa ou Coldre; ajuste posição e rotação em tempo real.
+7) Use Copiar meus ajustes e envie o texto para fixarmos estes valores em código.
 
-GITHUB:
-1. Extraia o ZIP.
-2. Faça upload de index.html e app.js na raiz do repositório.
-3. Confirme em Commit changes.
-4. Não apague nem substitua tio-urso.glb, tonfa.glb, coldre.glb ou style.css.
+As posições/rotações ficam salvas localmente no navegador atual, não no GitHub.
+O giro Y costuma corrigir o coldre que aponta para a câmera; X/Z corrigem
+inclinação da tonfa. O sistema não mexe na tonfa enquanto está na mão.
 
-NOTA: Código verificado, mas a posição dos acessórios e a pegada precisam de
-uma conferência visual no Android. Esta versão privilegia estabilidade;
-não promete mão perfeitamente fechada sem animação dedicada.
+OBSERVAÇÃO: código e ZIP verificados, mas resultado visual deve ser testado no
+Android antes de considerarmos a orientação e o encaixe definitivos.
