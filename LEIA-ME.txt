@@ -1,32 +1,24 @@
-TIO URSO: PATRULHA — v0.7.7
-CORREÇÃO: COLDRE E TONFA GUARDADA SEGUEM O PERSONAGEM
+TIO URSO: PATRULHA — v0.7.8 — CÂMERA LIVRE, SOMBRAS E PATA NO COLETE
 
-Problema encontrado: os itens guardados estavam ligados à raiz do GLB,
-enquanto a animação de caminhada/corrida/ataque desloca os ossos do corpo.
-Durante certos movimentos, o Tio Urso se separava visualmente dos itens.
-
-Correção: o encaixe do coldre e o encaixe da tonfa guardada agora são
-filhos do osso Hips, com conversão da calibração original para o espaço
-do quadril. Assim, os equipamentos acompanham os movimentos do corpo,
-sem perder os valores de posição/rotação aprovados no celular.
-
-CALIBRAÇÕES MANTIDAS:
-Tonfa guardada: x=.225 y=.815 z=.075 rx=11.15 ry=1.56 rz=8.12
-Coldre: x=-.25 y=.855 z=-.02 rx=1.72 ry=-95.31 rz=-4.58
-Tonfa mão repouso: x=0 y=-.075 z=-.058 rx=0 ry=-40 rz=0
-Tonfa mão ataque: x=-.15 y=.075 z=-.008 rx=0 ry=5 rz=-110
-
-ATUALIZAÇÃO NO GITHUB (PELO CELULAR)
+ATUALIZAÇÃO PELO CELULAR (GITHUB PAGES)
 1. Extraia este ZIP.
-2. Substitua SOMENTE index.html e app.js na raiz do repositório.
-3. Confirme em Commit changes.
-4. Quando concluir o deploy, abra:
-   https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=077
-5. Teste parada, caminhada, corrida, com tonfa guardada/equipada e combo.
+2. Acesse github.com/wesleyhulk-pixel/tio-urso-patrulha
+3. Use Add file > Upload files.
+4. Substitua index.html e app.js (na raiz, sem pasta).
+5. Confirme em Commit changes e espere o GitHub Pages publicar.
+6. Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=078
 
-NÃO APAGUE ou reenvie tio-urso.glb, tonfa.glb, coldre.glb ou style.css.
-As texturas e o progresso das missões são mantidos.
-Ajustes salvos na chave tio-urso-acessorios-v076 são preservados.
-Modo de ajuste opcional: ?ajuste=1&v=077
+NÃO APAGUE OU REENVIE os GLBs e style.css: arquivos existentes são aproveitados.
 
-OBS: Arquivo JS validado em sintaxe; requer confirmação visual no Android.
+NOVIDADES:
+- Arraste o dedo na cena para direita/esquerda e cima/baixo para controlar a câmera.
+- Câmera mais próxima em paisagem; enquadramento de retrato preservado.
+- Sombra dinâmica projetada pela geometria animada com sombra suave sob o personagem.
+- Emblema de pata branco/azul/dourado aderido à parte de trás do colete.
+
+MANTIDOS: GLB original, texturas, caminhada, corrida automática, ataque, tonfa,
+coldre, posições calibradas, missão, XP e painel de ajuste de equipamentos.
+
+OBSERVAÇÃO: testado estaticamente e validado o JavaScript; ainda é necessário
+verificar a imagem e o desempenho reais no aparelho Android. Se cair o FPS,
+poderemos ajustar a resolução da sombra nesta versão.

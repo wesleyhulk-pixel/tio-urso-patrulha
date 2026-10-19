@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.8: camera livre vertical/horizontal, enquadramento proximo em paisagem,
+// sombra real das animacoes + pata no colete (sem alterar os GLBs).
 // v0.7.7: encaixes do cinto seguem o osso Hips animado, mantendo as calibrações.
 // v0.7.6: calibrações confirmadas pelo usuário para os QUATRO encaixes.
 // Novos padrões e armazenamento próprio: não importar automaticamente ajustes
@@ -35,6 +37,9 @@ let renderer, scene, camera, clock, player, characterModel;
 let started = false, ready = false, ignorePortrait = false;
 let xp = 0, talked = new Set(), toastUntil = 0;
 let walking = false, runHeld = false, camYaw = Math.PI;
+// Câmera orbital: movimentação vertical disponível para mirar futuramente.
+let camPitch = .26;
+const CAM_PITCH_MIN = -.32, CAM_PITCH_MAX = .85;
 let introButton = el('start');
 let citizenNodes = [];
 let obstacles = [];
@@ -68,6 +73,10 @@ let equipped = 'punhos';
 let tonfaModel = null, rightHolster = null, actionEffect = null;
 let tonfaBeltSocket=null, tonfaHandSocket=null, tonfaAssetLoaded=false;
 let rightHandBone = null, hipBone = null;
+let contactShadow = null, sunLight = null, pawBadge = null;
+const accessoryWorldOffset = new THREE.Vector3();
+const shadowAnchor = new THREE.Vector3();
+const sunlightOffset = new THREE.Vector3(-12,25,-10);
 // Matriz de referência: coordenadas dos ajustes v0.7.6 no espaço do personagem
 // convertidas para o sistema do quadril ANTES das animações. Não recalcular por frame.
 let hipsReferenceInverse = null;
@@ -79,8 +88,10 @@ let animVars = {
 };
 const velocitySmooth = new THREE.Vector3();
 const GROUND_Y = .041;
-const CAM_DISTANCE = 2.65;
-const CAM_HEIGHT = 2.24;
+// Em paisagem, a câmera chega mais perto da altura dos ombros.
+const CAM_DISTANCE_WIDE = 1.92;
+const CAM_DISTANCE_TALL = 2.48;
+const CAM_TARGET_HEIGHT = 1.30;
 
 
 try {
@@ -116,7 +127,7 @@ function box(w,h,d,color,x,y,z){
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), standard(color));
   mesh.position.set(x,y,z);scene.add(mesh);return mesh;
 }
-function road(x,z,w,d){box(w,.025,d,0x39444c,x,.025,z);}
+function road(x,z,w,d){const asphalt=box(w,.025,d,0x39444c,x,.025,z);asphalt.receiveShadow=true;}
 function labelSprite(text, color='#ffffff', background='#122a43', scaleX=3.7, scaleY=.62){
   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=88;
   const c=canvas.getContext('2d');c.fillStyle=background;c.fillRect(0,0,512,88);
@@ -317,6 +328,11 @@ function createGroundShadow(){
   c.fillStyle=gradient;c.fillRect(0,0,128,128);
   const m=new THREE.Mesh(new THREE.PlaneGeometry(1.45,1.05),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas),transparent:true,depthWrite:false,opacity:.85,polygonOffset:true,polygonOffsetFactor:-1}));
   m.rotation.x=-Math.PI/2;m.position.y=-.008;
+  // Contato suave sob o corpo: luz real complementa e projeta os movimentos.
+  m.material.opacity=.36;
+  m.position.y=.004;
+  m.renderOrder=1;
+  contactShadow=m;
   player.add(m);
 }
 function makeAttackEffect(){
@@ -520,7 +536,7 @@ function normalizeAccessoryScene(root, desiredLength, orientation){
   centered.scale.setScalar(desiredLength/span);
   if(orientation==='tonfa')pivot.rotation.z=-Math.PI/2;
   pivot.add(centered);
-  root.traverse(o=>{if(o.isMesh){o.castShadow=false;}});
+  root.traverse(o=>{if(o.isMesh){o.castShadow=true;}});
   return pivot;
 }
 function loadDetailedBeltAssets(){
@@ -713,19 +729,82 @@ function doAction(){
   }
 }
 
+// Brasão com pata, aplicado como decalque no colete (não modifica o GLB).
+// O decalque é filho da coluna torácica, acompanhando as animações.
+function makePawBadge(){
+  if(!characterModel || pawBadge)return;
+  const clothBone=findRigBone(characterModel,'mixamorig:Spine2') ||
+    findRigBone(characterModel,'mixamorig:Spine1');
+  if(!clothBone){console.warn('Não foi localizado o osso torácico para a pata.');return;}
+  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=600;
+  const ctx=canvas.getContext('2d');
+  ctx.lineJoin='round';
+  const path=new Path2D();
+  path.moveTo(256,62);path.lineTo(432,116);path.lineTo(422,369);
+  path.quadraticCurveTo(415,469,256,535);
+  path.quadraticCurveTo(97,469,90,369);
+  path.lineTo(80,116);path.closePath();
+  ctx.fillStyle='#f0c85b';ctx.fill(path);
+  ctx.save();ctx.translate(256,298);ctx.scale(.87,.88);ctx.translate(-256,-298);
+  ctx.fillStyle='#112e59';ctx.fill(path);ctx.restore();
+  ctx.strokeStyle='#f8f3df';ctx.lineWidth=8;ctx.stroke(path);
+  // Quatro dedos e palma, sem texto ou brasão institucional real.
+  ctx.fillStyle='#ffffff';
+  [[142,250,31,39,-.25],[214,214,33,44,-.08],[299,214,33,44,.08],[369,250,31,39,.25]].forEach(([x,y,rx,ry,angle])=>{
+    ctx.beginPath();ctx.ellipse(x,y,rx,ry,angle,0,Math.PI*2);ctx.fill();
+  });
+  ctx.beginPath();ctx.moveTo(157,365);
+  ctx.bezierCurveTo(156,321,200,291,230,309);
+  ctx.quadraticCurveTo(256,325,281,309);
+  ctx.bezierCurveTo(313,290,355,321,355,365);
+  ctx.bezierCurveTo(356,416,307,441,256,424);
+  ctx.bezierCurveTo(205,441,156,415,157,365);
+  ctx.fill();
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,
+    side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2});
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.31,.355),material);
+  mesh.name='Emblema_Pata_Colete_Costas';
+  // Centro das costas do colete no referencial original do GLB.
+  // O eixo frontal do personagem é +Z; a parte traseira é -Z.
+  const referencePos=new THREE.Vector3(0,1.32,-.229);
+  characterModel.updateWorldMatrix(true,true);
+  const worldPos=characterModel.localToWorld(referencePos.clone());
+  const boneWorld=clothBone.getWorldQuaternion(new THREE.Quaternion());
+  const baseWorld=characterModel.getWorldQuaternion(new THREE.Quaternion());
+  const targetWorld=baseWorld.multiply(new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(0,1,0),Math.PI));
+  clothBone.add(mesh);
+  mesh.position.copy(clothBone.worldToLocal(worldPos));
+  mesh.quaternion.copy(boneWorld.invert().multiply(targetWorld));
+  pawBadge=mesh;
+}
+
 function buildScene(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x91c8e1);scene.fog=new THREE.Fog(0x91c8e1,34,92);
   camera=new THREE.PerspectiveCamera(64,1,.1,180);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',alpha:false});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,1.5));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
+  // Sombras reais, acompanhando os ossos e a arma durante os golpes.
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;
   mount.appendChild(renderer.domElement);
   scene.add(new THREE.HemisphereLight(0xe7f4ff,0x778062,2.15));
-  const sun=new THREE.DirectionalLight(0xffefcd,2.4);sun.position.set(-12,25,-10);scene.add(sun);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(125,125),standard(0x779b78));floor.rotation.x=-Math.PI/2;floor.position.y=-.018;scene.add(floor);
+  sunLight=new THREE.DirectionalLight(0xffefcd,2.4);
+  sunLight.position.set(-12,25,-10);sunLight.castShadow=true;
+  sunLight.shadow.mapSize.set(1024,1024);
+  sunLight.shadow.camera.near=1;sunLight.shadow.camera.far=55;
+  sunLight.shadow.camera.left=-13;sunLight.shadow.camera.right=13;
+  sunLight.shadow.camera.top=13;sunLight.shadow.camera.bottom=-13;
+  sunLight.shadow.bias=-.00018;sunLight.shadow.normalBias=.025;
+  sunLight.shadow.radius=2;
+  scene.add(sunLight);scene.add(sunLight.target);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(125,125),standard(0x779b78));floor.rotation.x=-Math.PI/2;floor.position.y=-.018;floor.receiveShadow=true;scene.add(floor);
   road(0,0,7.8,111);road(0,13.5,111,7.5);road(0,-29,111,6.5);
-  box(2.4,.05,111,0xc7c4b7,-5.1,.06,0);box(2.4,.05,111,0xc7c4b7,5.1,.06,0);
+  for(const x of [-5.1,5.1]){const walk=box(2.4,.05,111,0xc7c4b7,x,.06,0);walk.receiveShadow=true;}
   // Centro de faixa da rua e marcações de pedestres.
   for(let z=-51;z<=52;z+=5)box(.13,.03,2.15,0xeae2a7,0,.055,z);
   for(let x=-3.6;x<=3.6;x+=1.03)box(.5,.026,1.45,0xe5ded1,x,.058,7.9);
@@ -755,7 +834,7 @@ function buildScene(){
   createGroundShadow();makeAttackEffect();makeTonfa();
   clock=new THREE.Clock();
   onResize();window.addEventListener('resize',onResize);
-  camera.position.set(0,CAM_HEIGHT,-13-CAM_DISTANCE);
+  camera.position.set(0,1.8,-13-CAM_DISTANCE_WIDE);
   return new Promise(resolve=>{
     const loader=new GLTFLoader();
     loader.load(CHARACTER_FILE,gltf=>{
@@ -768,11 +847,14 @@ function buildScene(){
       characterModel.rotation.y=MODEL_FACE_OFFSET;
       modelBaseY = characterModel.position.y;
       player.add(characterModel);
+      // A malha animada lança sombra física sobre a rua.
+      characterModel.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=false;}});
       if(!installRiggedAnimations(gltf)){
         // Reserva para um modelo antigo sem ossos.
         installProceduralGait(characterModel);
       }
       attachTonfaToRig();
+      makePawBadge();
       console.info('Tio Urso GLB carregado corretamente, rig:',hasRiggedAnimations);
       resolve(true);
     },undefined,error=>{
@@ -888,10 +970,36 @@ function update(dt){
   // O modelo permanece assentado no piso, sem salto artificial.
   player.position.y=GROUND_Y;
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}
+  // A sombra suave fica sob o quadril efetivo (inclusive nas animações com
+  // deslocamento do root/hips); a sombra de luz acompanha a malha em tempo real.
+  if(contactShadow){
+    shadowAnchor.set(0,0,0);
+    if(hipBone){
+      hipBone.getWorldPosition(accessoryWorldOffset);
+      player.worldToLocal(accessoryWorldOffset);
+      shadowAnchor.copy(accessoryWorldOffset);
+    }
+    contactShadow.position.set(
+      THREE.MathUtils.clamp(shadowAnchor.x,-1.5,1.5),.004,
+      THREE.MathUtils.clamp(shadowAnchor.z,-1.5,1.5));
+  }
+  if(sunLight){
+    sunLight.target.position.copy(player.position);
+    sunLight.position.copy(player.position).add(sunlightOffset);
+    sunLight.target.updateMatrixWorld();
+  }
   const behindX=Math.sin(camYaw),behindZ=Math.cos(camYaw);
-  camPosWanted.set(player.position.x+behindX*CAM_DISTANCE,player.position.y+CAM_HEIGHT,player.position.z+behindZ*CAM_DISTANCE);
-  camera.position.lerp(camPosWanted,1-Math.exp(-dt*9));
-  targetPos.set(player.position.x,1.32,player.position.z);
+  const landscape=window.innerWidth>window.innerHeight;
+  const distance=landscape?CAM_DISTANCE_WIDE:CAM_DISTANCE_TALL;
+  const flatDistance=distance*Math.cos(camPitch);
+  const eyeLevel=CAM_TARGET_HEIGHT+distance*Math.sin(camPitch);
+  camPosWanted.set(
+    player.position.x+behindX*flatDistance,
+    player.position.y+Math.max(.44,eyeLevel),
+    player.position.z+behindZ*flatDistance
+  );
+  camera.position.lerp(camPosWanted,1-Math.exp(-dt*10));
+  targetPos.set(player.position.x,player.position.y+CAM_TARGET_HEIGHT,player.position.z);
   camera.lookAt(targetPos);
   const c=nearbyCitizen();const hint=el('action-hint');
   if(c){hint.classList.add('visible');hint.textContent=talked.has(c.id)?`✓ ${c.name} já foi atendido`:`✋ FALAR com ${c.name}`;}
@@ -967,11 +1075,24 @@ function installControls(){
   window.addEventListener('keyup',e=>pressedKeys.delete(e.code));
   window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;clearStick();});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.
-  let cameraPointer=null,lastX=0;
-  mount.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;cameraPointer=e.pointerId;lastX=e.clientX;mount.setPointerCapture(e.pointerId);});
-  mount.addEventListener('pointermove',e=>{if(cameraPointer!==e.pointerId)return;const dx=e.clientX-lastX;lastX=e.clientX;camYaw-=dx*.006;});
+  let cameraPointer=null,lastX=0,lastY=0;
+  mount.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    if(cameraPointer!==null)return; // O segundo dedo continua independente no joystick.
+    cameraPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;
+    mount.setPointerCapture(e.pointerId);e.preventDefault();
+  });
+  mount.addEventListener('pointermove',e=>{
+    if(cameraPointer!==e.pointerId)return;
+    const dx=e.clientX-lastX,dy=e.clientY-lastY;
+    lastX=e.clientX;lastY=e.clientY;
+    camYaw-=dx*.006;
+    camPitch=THREE.MathUtils.clamp(camPitch+dy*.0045,CAM_PITCH_MIN,CAM_PITCH_MAX);
+    e.preventDefault();
+  });
   const release=e=>{if(cameraPointer===e.pointerId)cameraPointer=null;};
   mount.addEventListener('pointerup',release);mount.addEventListener('pointercancel',release);
+  mount.addEventListener('lostpointercapture',release);
   el('full').addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();if(screen.orientation?.lock&&screen.orientation.lock instanceof Function)await screen.orientation.lock('landscape');}catch(e){notify('Gire o celular manualmente para jogar em paisagem.');}});
   el('ignore-rotate').addEventListener('click',()=>{ignorePortrait=true;el('rotate-hint').classList.add('ignored');});
   window.addEventListener('resize',()=>{if(window.innerWidth>window.innerHeight&&!ignorePortrait)el('rotate-hint').classList.remove('ignored');});
