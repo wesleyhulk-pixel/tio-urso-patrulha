@@ -1,18 +1,19 @@
-Tio Urso: Patrulha — v0.8.2 (correção de braço na mira)
+TIO URSO: PATRULHA — v0.8.3
 
-Substitua index.html e app.js no GitHub.
-LEIA-ME.txt é opcional. Não apague os arquivos GLB nem style.css.
+ATUALIZAÇÃO DE MIRA COM EIXOS INDEPENDENTES
 
-Mudanças:
-- Postura do ombro e antebraço calculada uma única vez no carregamento
-  a partir do esqueleto do personagem, nunca recalculada a cada quadro.
-- Mistura entre descanso e mira sem alterar as articulações das mãos/dedos.
-- Corrigido texto de versão do painel de mira.
-- Só ajuste Pistola • Mira liberado no modo ajuste.
-- Os seis encaixes anteriores continuam com valores fixos.
-- Pistola continua desabilitada para disparos fora do modo de teste.
+Atualize index.html e app.js no GitHub. Este pacote contém também este LEIA-ME.txt.
+NÃO apague tio-urso.glb, pistola.glb, tonfa.glb, coldre.glb ou style.css.
 
-Teste: em modo ajuste, equipe a pistola, prepare a mira e observe
-se o braço permanece na mesma postura por pelo menos 10 segundos.
-Se a postura ainda estiver inadequada, não ajuste a rotação da pistola
-para compensar o braço: primeiro será preciso afinar os ângulos dos ossos.
+Use: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=083
+
+Correções:
+- Braço fixo da v0.8.2 permanece sem alterações.
+- Pistola apontando adiante como base da mira; ajuste por quaternions em referencial estável.
+- Cano ↑/↓, Apontar ←/→ e Torcer passam a ser movimentos diferentes.
+- Somente o estado Pistola — Mira permanece ajustável.
+- Seis calibrações já aprovadas (tonfa/coldre/pistola descanso) intactas.
+- Posição XYZ da mira antiga mantida quando disponível; GIROS antigos inválidos NÃO são importados.
+- Ajustes da mira são salvos em nova chave v083.
+
+Teste visual obrigatório no Android antes de considerar o ângulo final concluído.

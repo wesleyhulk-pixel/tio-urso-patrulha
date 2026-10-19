@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.8.3: ajuste da mira por quaternions em REFERENCIAL FIXO do personagem.
+// Pitch/yaw/roll são independentes da rotação Euler inicial do Meshy;
+// pistola aponta adiante (+Z), com cano original no eixo -X do GLB.
+// Sem tocar nas 6 calibrações aprovadas, nem na pose FIXA v0.8.2.
 // v0.8.2: postura de mira pré-calculada UMA VEZ com os ossos do GLB.
 // Sem solver dinâmico durante a mira; testes preservados.
 // v0.8.1: fixo de ombro e antebraço por POSE ABSOLUTA (sem acúmulo),
@@ -131,6 +135,51 @@ function prepareFixedAimPose(){
   rightForeArm.quaternion.copy(aimRestForearm);
   characterModel.updateWorldMatrix(true,true);
   console.info('v0.8.2: pose FIXA de mira criada uma única vez; sem giro por frame.');
+}
+// Coordenadas da arma: no GLB fornecido o cano aponta para -X e a
+// vertical do modelo para +Y. Em vez de editar Euler XYZ sobre um Y=-120°
+// (eixos X/Z quase sobrepostos na tela), calibramos em torno dos eixos
+// fixos do PERSONAGEM: inclinação do cano (X), direção lateral (Y),
+// torção do cano (Z). O resultado é transformado UMA vez para a mão
+// direita com a pose de mira estável já aprovada na v0.8.2.
+let aimCharacterToHand = null;
+const gunForwardAlignment = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(0,1,0), Math.PI/2);
+const aimAxisX=new THREE.Vector3(1,0,0);
+const aimAxisY=new THREE.Vector3(0,1,0);
+const aimAxisZ=new THREE.Vector3(0,0,1);
+const aimQYaw=new THREE.Quaternion();
+const aimQPitch=new THREE.Quaternion();
+const aimQRoll=new THREE.Quaternion();
+const aimQuaternion=new THREE.Quaternion();
+function preparePistolAimFrame(){
+  if(!characterModel || !rightUpperArm || !rightForeArm || !pistolHandSocket ||
+     !aimFixedUpper || !aimFixedForearm)return;
+  // Preparação feita só durante o carregamento, antes dos quadros do jogo.
+  const keepUpper=rightUpperArm.quaternion.clone();
+  const keepFore=rightForeArm.quaternion.clone();
+  rightUpperArm.quaternion.copy(aimFixedUpper);
+  rightForeArm.quaternion.copy(aimFixedForearm);
+  characterModel.updateWorldMatrix(true,true);
+  const handWorld=pistolHandSocket.getWorldQuaternion(new THREE.Quaternion());
+  const charWorld=characterModel.getWorldQuaternion(new THREE.Quaternion());
+  aimCharacterToHand=handWorld.invert().multiply(charWorld).normalize();
+  rightUpperArm.quaternion.copy(keepUpper);
+  rightForeArm.quaternion.copy(keepFore);
+  characterModel.updateWorldMatrix(true,true);
+  console.info('v0.8.3: base de mira fixa calculada; cano -X -> +Z.');
+}
+function getPistolAimQuaternion(angles){
+  if(!aimCharacterToHand)return null;
+  // Ordem extrínseca explícita: guinada Y, elevação X, rolagem Z.
+  // Cada botão altera UM parâmetro independente do ângulo Euler da arma.
+  aimQYaw.setFromAxisAngle(aimAxisY,THREE.MathUtils.degToRad(angles.yaw));
+  // Pitch positivo = subir o cano (+Y), invertendo sinal de RX físico.
+  aimQPitch.setFromAxisAngle(aimAxisX,-THREE.MathUtils.degToRad(angles.pitch));
+  aimQRoll.setFromAxisAngle(aimAxisZ,THREE.MathUtils.degToRad(angles.roll));
+  return aimQuaternion.copy(aimCharacterToHand)
+    .multiply(aimQYaw).multiply(aimQPitch).multiply(aimQRoll)
+    .multiply(gunForwardAlignment).normalize();
 }
 let pistolModel=null, pistolAssetLoaded=false;
 let pistolHolsterSocket=null, pistolHandSocket=null;
@@ -463,7 +512,8 @@ const HAND_TONFA_ATTACK = Object.freeze({x:-.15, y:.075, z:-.008, rx:0, ry:5, rz
 const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v076';
 const ACCESSORY_NAMES = ['tonfa','coldre','maoDescanso','maoAtaque'];
 // Separado do armazenamento das quatro calibrações anteriores.
-const PISTOL_ADJUST_KEY='tio-urso-mira-v082';
+const PISTOL_ADJUST_KEY='tio-urso-mira-v083';
+const AIM_ROTATION = ['pitch','yaw','roll'];
 const PISTOL_NAMES=['pistolaNoColdre','pistolaDescanso','pistolaMira'];
 // Os DOIS ajustes de pistola já aprovados pelo jogador não podem ser
 // alterados no painel. A mira NÃO reutiliza o valor antigo (bug helicóptero).
@@ -474,25 +524,32 @@ const PISTOL_REST_HAND = Object.freeze({x:-0.037,y:0.195,z:-0.049,rx:-35,ry:-120
 const pistolDefaults={
   pistolaNoColdre:PISTOL_REST_HOLSTER,
   pistolaDescanso:PISTOL_REST_HAND,
-  pistolaMira:PISTOL_REST_HAND
+  pistolaMira:Object.freeze({x:PISTOL_REST_HAND.x,y:PISTOL_REST_HAND.y,z:PISTOL_REST_HAND.z,pitch:0,yaw:0,roll:0})
 };
 let pistolAdjustments={};
 function loadPistolAdjustments(){
+  // Nunca alterar os dois encaixes que o usuário já aprovou.
   pistolAdjustments.pistolaNoColdre={...PISTOL_REST_HOLSTER};
   pistolAdjustments.pistolaDescanso={...PISTOL_REST_HAND};
-  let saved={};
+  let saved={}, legacy={};
   try{saved=JSON.parse(localStorage.getItem(PISTOL_ADJUST_KEY)||'{}')||{};}catch(e){}
-  const raw=saved.pistolaMira||{}, def=pistolDefaults.pistolaMira;
+  // Preservar somente eventual posição XYZ já acertada em 0.8.2.
+  // As rotações Euler antigas eram ambíguas e NÃO serão importadas.
+  try{legacy=JSON.parse(localStorage.getItem('tio-urso-mira-v082')||'{}')||{};}catch(e){}
+  const existing=saved.pistolaMira || {};
+  const previousPos=(saved.pistolaMira? existing:legacy.pistolaMira)||{};
+  const def=pistolDefaults.pistolaMira;
   pistolAdjustments.pistolaMira={};
   for(const axis of AXES_POSITION){
-    pistolAdjustments.pistolaMira[axis]=Number.isFinite(raw[axis])
-      ? THREE.MathUtils.clamp(raw[axis],-1.5,2):def[axis];
+    pistolAdjustments.pistolaMira[axis]=Number.isFinite(previousPos[axis])
+      ? THREE.MathUtils.clamp(previousPos[axis],-1.5,2):def[axis];
   }
-  for(const axis of AXES_ROTATION){
-    pistolAdjustments.pistolaMira[axis]=Number.isFinite(raw[axis])
-      ? normalizeAngleDegrees(raw[axis]):def[axis];
+  for(const axis of AIM_ROTATION){
+    pistolAdjustments.pistolaMira[axis]=Number.isFinite(existing[axis])
+      ? normalizeAngleDegrees(existing[axis]):0;
   }
 }
+
 function savePistolAdjustments(){
   // Nunca sobrescrever os dois estados fixos no armazenamento.
   try{localStorage.setItem(PISTOL_ADJUST_KEY,JSON.stringify({pistolaMira:pistolAdjustments.pistolaMira}));}catch(e){}
@@ -634,6 +691,7 @@ function attachTonfaToRig(){
   hipBone.add(rightHolster);
   rightHandBone.add(tonfaHandSocket);
   rightHandBone.add(pistolHandSocket);
+  preparePistolAimFrame();
   console.info('v0.7.7: coldre e tonfa guardada ancorados ao quadril animado.');
   // Apenas encaixe da peça — sem forçar rotação do punho nem dedos do urso.
   tonfaHandSocket.position.set(-.015,.085,.024);
@@ -704,13 +762,14 @@ function applyPistolPlacement(){
     THREE.MathUtils.lerp(base.y,aim.y,t),
     THREE.MathUtils.lerp(base.z,aim.z,t)
   );
-  // Em vez de somar giros Euler (que podiam produzir voltas estranhas),
-  // combina as duas orientações como quaternions pelo caminho curto.
+  // A mão em DESCANSO conserva EXATAMENTE a calibração aprovada.
   const q0=new THREE.Quaternion().setFromEuler(new THREE.Euler(
-    THREE.MathUtils.degToRad(base.rx),THREE.MathUtils.degToRad(base.ry),THREE.MathUtils.degToRad(base.rz),'XYZ'));
-  const q1=new THREE.Quaternion().setFromEuler(new THREE.Euler(
-    THREE.MathUtils.degToRad(aim.rx),THREE.MathUtils.degToRad(aim.ry),THREE.MathUtils.degToRad(aim.rz),'XYZ'));
-  pistolModel.quaternion.copy(q0).slerp(q1,t);
+    THREE.MathUtils.degToRad(base.rx),THREE.MathUtils.degToRad(base.ry),
+    THREE.MathUtils.degToRad(base.rz),'XYZ'));
+  const qAim=inHand?getPistolAimQuaternion(aim):null;
+  pistolModel.quaternion.copy(q0);
+  if(qAim)pistolModel.quaternion.slerp(qAim,t).normalize();
+
 }
 function refreshPistolState(){
   if(!pistolModel || !pistolHandSocket || !pistolHolsterSocket)return;
@@ -776,7 +835,7 @@ function enableAccessoryCalibration(){
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(256px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-      <b>AJUSTE DA MIRA · 0.8.2</b>
+      <b>AJUSTE DA MIRA · 0.8.3</b>
       <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
     </div>
     <div id="cal-body">
@@ -787,18 +846,19 @@ function enableAccessoryCalibration(){
         <div id="cal-pos-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
         <button id="cal-reset-pos" type="button" class="cal-secondary">Restaurar só posição da mira</button>
       </details>
-      <details open><summary style="font-weight:700;padding:6px 0;cursor:pointer">↻ ROTAÇÃO XYZ</summary>
+      <details open><summary style="font-weight:700;padding:6px 0;cursor:pointer">↻ ORIENTAÇÃO DO CANO</summary>
+        <small style="display:block;opacity:.85;margin:2px 0 4px">Comandos independentes da rotação original do Meshy.</small>
         <label style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin:5px 0">Passo do giro
           <select id="cal-step" style="padding:5px;color:#111;background:white;border-radius:5px">
             <option value="1">1° (fino)</option><option value="5" selected>5°</option><option value="15">15°</option>
           </select>
         </label>
         <div id="cal-rot-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
-        <button id="cal-rotate-back" type="button" class="cal-secondary">Girar mira Y +180°</button>
-        <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar só rotação da mira</button>
+        <button id="cal-rotate-back" type="button" class="cal-secondary">Virar cano 180°</button>
+        <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar orientação da mira</button>
       </details>
-      <button id="cal-copy" type="button" class="cal-secondary">Copiar ajuste da pistola em mira</button>
-      <small style="display:block;margin-top:5px;opacity:.85">Apenas a mira é salva. As seis calibrações aprovadas permanecem intactas.</small>
+      <button id="cal-copy" type="button" class="cal-secondary">Copiar posição e orientação da mira</button>
+      <small style="display:block;margin-top:5px;opacity:.85">Somente a mira é salva; os seis encaixes aprovados permanecem intactos.</small>
       <small id="cal-message" role="status" style="display:block;min-height:12px;margin-top:4px;color:#ffe19b"></small>
     </div>`;
   document.body.append(panel);
@@ -809,7 +869,7 @@ function enableAccessoryCalibration(){
   const message=panel.querySelector('#cal-message');
   const show=()=>{
     const p=pistolAdjustments.pistolaMira;
-    readout.innerHTML=`<b>PISTOLA • MIRA</b><br>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}<br>Giro: X ${p.rx.toFixed(2)}° · Y ${p.ry.toFixed(2)}° · Z ${p.rz.toFixed(2)}°`;
+    readout.innerHTML=`<b>PISTOLA • MIRA</b><br>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}<br>Cano ↑↓ ${p.pitch.toFixed(1)}° · Lados ↔ ${p.yaw.toFixed(1)}° · Torção ⟳ ${p.roll.toFixed(1)}°`;
   };
   panel.querySelector('#cal-preview').addEventListener('click',()=>{
     if(!started){message.textContent='Primeiro toque em INICIAR PATRULHAMENTO.';return;}
@@ -817,11 +877,11 @@ function enableAccessoryCalibration(){
     if(equipped!=='arma')selectEquipment('arma');
     if(equipped!=='arma'){message.textContent='Não foi possível equipar a pistola.';return;}
     setAiming(true);
-    message.textContent='Mira ativada. Ajuste XYZ com a câmera em terceira pessoa.';
+    message.textContent='Mira estável. Use Cano ↑↓, Apontar ↔ e Torcer ⟳ para orientar a pistola.';
   });
   const change=(axis,delta)=>{
     const p=pistolAdjustments.pistolaMira;
-    p[axis]=AXES_ROTATION.includes(axis)?normalizeAngleDegrees(p[axis]+delta)
+    p[axis]=AIM_ROTATION.includes(axis)?normalizeAngleDegrees(p[axis]+delta)
       :Math.round(THREE.MathUtils.clamp(p[axis]+delta,-1.5,2)*1000)/1000;
     applyPistolPlacement();savePistolAdjustments();show();
   };
@@ -836,18 +896,20 @@ function enableAccessoryCalibration(){
     addButton(pos,`${name} −`,axis,-1,false);addButton(pos,`${name} +`,axis,1,false);
   }
   const rot=panel.querySelector('#cal-rot-buttons');
-  for(const axis of AXES_ROTATION){
-    const name=axis.slice(1).toUpperCase();
-    addButton(rot,`Giro ${name} −`,axis,-1,true);addButton(rot,`Giro ${name} +`,axis,1,true);
-  }
-  panel.querySelector('#cal-rotate-back').addEventListener('click',()=>change('ry',180));
+  // Botões com significado concreto: não exigem adivinhar Euler XYZ.
+  for(const [label,axis,dir] of [
+    ['Cano ↓','pitch',-1],['Cano ↑','pitch',1],
+    ['Apontar ←','yaw',-1],['Apontar →','yaw',1],
+    ['Torcer ↻','roll',-1],['Torcer ↺','roll',1]
+  ])addButton(rot,label,axis,dir,true);
+  panel.querySelector('#cal-rotate-back').addEventListener('click',()=>change('yaw',180));
   const resetAxes=axes=>{
     for(const axis of axes)pistolAdjustments.pistolaMira[axis]=pistolDefaults.pistolaMira[axis];
     applyPistolPlacement();savePistolAdjustments();show();
     message.textContent='Restaurado apenas o ajuste da mira.';
   };
   panel.querySelector('#cal-reset-pos').addEventListener('click',()=>resetAxes(AXES_POSITION));
-  panel.querySelector('#cal-reset-rot').addEventListener('click',()=>resetAxes(AXES_ROTATION));
+  panel.querySelector('#cal-reset-rot').addEventListener('click',()=>resetAxes(AIM_ROTATION));
   panel.querySelector('#cal-copy').addEventListener('click',async()=>{
     const result=JSON.stringify({pistolaMira:pistolAdjustments.pistolaMira},null,2);
     try{await navigator.clipboard.writeText(result);message.textContent='Ajuste da mira copiado!';}
@@ -1140,7 +1202,7 @@ function update(dt){
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
     aimBlend+=(Number(aiming&&equipped==='arma')-aimBlend)*(1-Math.exp(-dt*11));
-    // v0.8.2: nenhuma rotação calculada por frame. Apenas aplicar pose
+    // v0.8.3: nenhuma rotação calculada por frame. Apenas aplicar pose
     // fixa gerada uma vez no carregamento do rig (sem oscilações).
     applyStableFirearmAimPose(aimBlend);
     applyPistolPlacement();
