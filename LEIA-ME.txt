@@ -1,9 +1,14 @@
-Tio Urso: Patrulha v0.8.5 — Áudio urbano + biblioteca de efeitos.
+TIO URSO: PATRULHA — v0.8.6 (CORREÇÃO DE INVISIBILIDADE)
 
-Envie TODOS os 6 arquivos extraídos para a raiz do GitHub (sobrescrevendo index.html, app.js, LEIA-ME.txt). NÃO APAGUE os GLBs nem style.css.
+Corrige uma causa provável de o personagem desaparecer quando a câmera vai
+para trás: desativa o frustum culling no(s) mesh(es) do Tio Urso animado.
+A mudança NÃO altera o GLB, as animações, as texturas, câmera, mira,
+emblema, posição da tonfa, coldre ou os ajustes de pistola aprovados.
 
-Arquivos novos: ambiente-rua.mp3, ambiente-pessoas.mp3, efeitos.mp3.
+Se já instalou a versão com áudio v0.8.5, substitua index.html e app.js.
+Se ainda estava na v0.8.4, envie todos os seis arquivos deste ZIP para
+levar também os sons da v0.8.5. Preserve os demais arquivos do GitHub
+(tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb, style.css).
 
-O ambiente começa após o clique em INICIAR PATRULHAMENTO, sujeito à permissão do navegador. Toque no ícone 🔊 na barra superior para volume/mudo e prévias. Sons de pistola: equipamento e clique de teste; disparos funcionais não foram implementados. Sons de passos e tonfa ainda pendentes.
-
-Ajustes de pistola, tonfa, coldre, animações e XP da v0.8.4 foram preservados.
+Teste em seu Android: parado sem pistola, gire a câmera 360°; em seguida
+ande e corra com câmera atrás. A correção ainda depende do teste visual.

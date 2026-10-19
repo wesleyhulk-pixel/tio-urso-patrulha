@@ -1,3 +1,6 @@
+// v0.8.6: proteção contra desaparecimento do personagem por descarte
+// incorreto do SkinnedMesh durante a rotação da câmera. GLB, ossos,
+// materiais, animações e calibrações dos equipamentos inalterados.
 // v0.8.5: sons urbanos e biblioteca de efeitos com prévia.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -1219,8 +1222,22 @@ function buildScene(){
       characterModel.rotation.y=MODEL_FACE_OFFSET;
       modelBaseY = characterModel.position.y;
       player.add(characterModel);
-      // A malha animada lança sombra física sobre a rua.
-      characterModel.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=false;}});
+      // O modelo animado do Meshy utiliza SkinnedMesh. Seu boundingSphere
+      // em pose de repouso nem sempre representa as posições dos vértices
+      // depois de atualizar os ossos com AnimationMixer. Isso faz a câmera
+      // principal DESCARTAR o urso ao vê-lo por trás, enquanto a sombra e
+      // acessórios independentes continuam visíveis (efeito fantasma).
+      // Um único personagem (~134 mil faces) dispensa frustum culling;
+      // preservar materiais/texturas/ossos e nunca esconder suas malhas.
+      let protectedMeshes=0;
+      characterModel.traverse(o=>{
+        if(!o.isMesh)return;
+        o.frustumCulled=false;
+        o.castShadow=true;
+        o.receiveShadow=false;
+        protectedMeshes++;
+      });
+      console.info('v0.8.6: malhas 3D protegidas contra culling incorreto:',protectedMeshes);
       if(!installRiggedAnimations(gltf)){
         // Reserva para um modelo antigo sem ossos.
         installProceduralGait(characterModel);
