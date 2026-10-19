@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.9: pistola GLB texturizada no coldre e mão, estados descanso/mira,
+// ajuste independente dos três encaixes e retícula de câmera no teste.
+// O tiro continua bloqueado na progressão regular; teste visual via ?ajuste=1.
 // v0.7.8: camera livre vertical/horizontal, enquadramento proximo em paisagem,
 // sombra real das animacoes + pata no colete (sem alterar os GLBs).
 // v0.7.7: encaixes do cinto seguem o osso Hips animado, mantendo as calibrações.
@@ -26,6 +29,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const CHARACTER_FILE = './tio-urso.glb';
 const HOLSTER_FILE = './coldre.glb';
 const TONFA_BELT_FILE = './tonfa.glb';
+const PISTOL_FILE = './pistola.glb';
+const FIREARM_TEST_MODE = new URLSearchParams(location.search).has('ajuste');
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
@@ -73,6 +78,15 @@ let equipped = 'punhos';
 let tonfaModel = null, rightHolster = null, actionEffect = null;
 let tonfaBeltSocket=null, tonfaHandSocket=null, tonfaAssetLoaded=false;
 let rightHandBone = null, hipBone = null;
+let rightUpperArm=null, rightForeArm=null;
+let pistolModel=null, pistolAssetLoaded=false;
+let pistolHolsterSocket=null, pistolHandSocket=null;
+let aiming=false, aimBlend=0, lastAimCheck=0;
+const aimRaycaster=new THREE.Raycaster();
+aimRaycaster.far=90;
+const aimColliders=[];
+const aimTargetPoint=new THREE.Vector3();
+
 let contactShadow = null, sunLight = null, pawBadge = null;
 const accessoryWorldOffset = new THREE.Vector3();
 const shadowAnchor = new THREE.Vector3();
@@ -350,6 +364,12 @@ function makeTonfa(){
   tonfaModel.visible = false;
   rightHolster = new THREE.Group();
   rightHolster.visible = false;
+  pistolModel = new THREE.Group();
+  pistolModel.visible = false;
+  pistolHolsterSocket = new THREE.Group();
+  pistolHandSocket = new THREE.Group();
+  rightHolster.add(pistolHolsterSocket);
+
 }
 // GLTFLoader pode normalizar os nomes originais dos ossos (ex.: mixamorig:RightHand
 // vira mixamorigRightHand). Buscar apenas pelo nome com ':' deixava a tonfa solta.
@@ -389,6 +409,38 @@ const HAND_TONFA_ATTACK = Object.freeze({x:-.15, y:.075, z:-.008, rx:0, ry:5, rz
 // O progresso de XP/missões continua na chave independente demo-v01.
 const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v076';
 const ACCESSORY_NAMES = ['tonfa','coldre','maoDescanso','maoAtaque'];
+// Separado do armazenamento das quatro calibrações anteriores.
+const PISTOL_ADJUST_KEY='tio-urso-pistola-v079';
+const PISTOL_NAMES=['pistolaNoColdre','pistolaDescanso','pistolaMira'];
+const pistolDefaults={
+  pistolaNoColdre:{x:0,y:.024,z:0,rx:0,ry:0,rz:0},
+  pistolaDescanso:{x:-.012,y:-.055,z:.026,rx:0,ry:0,rz:0},
+  pistolaMira:{x:-.012,y:-.045,z:.025,rx:0,ry:0,rz:0}
+};
+let pistolAdjustments={};
+function loadPistolAdjustments(){
+  let raw={};
+  try{raw=JSON.parse(localStorage.getItem(PISTOL_ADJUST_KEY)||'{}')||{};}catch(e){}
+  for(const name of PISTOL_NAMES){
+    const saved=raw[name]||{}, def=pistolDefaults[name];
+    pistolAdjustments[name]={};
+    for(const axis of AXES_POSITION){
+      pistolAdjustments[name][axis]=Number.isFinite(saved[axis])
+        ? THREE.MathUtils.clamp(saved[axis],-1.5,2):def[axis];
+    }
+    for(const axis of AXES_ROTATION){
+      pistolAdjustments[name][axis]=Number.isFinite(saved[axis])
+        ? normalizeAngleDegrees(saved[axis]):def[axis];
+    }
+  }
+}
+function savePistolAdjustments(){
+  try{localStorage.setItem(PISTOL_ADJUST_KEY,JSON.stringify(pistolAdjustments));}catch(e){}
+}
+function calibValue(name){return PISTOL_NAMES.includes(name)?pistolAdjustments[name]:accessoryAdjustments[name];}
+function calibDefault(name){return PISTOL_NAMES.includes(name)?pistolDefaults[name]:accessoryDefaults[name];}
+function saveCalibrations(){saveAccessoryAdjustments();savePistolAdjustments();}
+
 const AXES_POSITION = ['x','y','z'];
 const AXES_ROTATION = ['rx','ry','rz'];
 const accessoryDefaults = {
@@ -425,6 +477,7 @@ function loadAccessoryAdjustments(){
   return positions;
 }
 accessoryAdjustments=loadAccessoryAdjustments();
+loadPistolAdjustments();
 function saveAccessoryAdjustments(){
   try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}
   catch(e){console.warn('Ajustes aplicados nesta sessão, mas não salvos:',e);}
@@ -473,6 +526,7 @@ function applyHandPlacement(attackBlend=handAttackBlend){
 function applyAccessoryPlacement(){
   applyBeltPlacement();
   applyHandPlacement();
+  applyPistolPlacement();
 }
 
 function refreshTonfaState(){
@@ -493,6 +547,8 @@ function refreshTonfaState(){
 
 function attachTonfaToRig(){
   rightHandBone=findRigBone(characterModel,'mixamorig:RightHand');
+  rightUpperArm=findRigBone(characterModel,'mixamorig:RightArm');
+  rightForeArm=findRigBone(characterModel,'mixamorig:RightForeArm');
   hipBone=findRigBone(characterModel,'mixamorig:Hips');
   if(!rightHandBone || !hipBone){
     tonfaAttachedToHand=false;
@@ -511,6 +567,7 @@ function attachTonfaToRig(){
   hipBone.add(tonfaBeltSocket);
   hipBone.add(rightHolster);
   rightHandBone.add(tonfaHandSocket);
+  rightHandBone.add(pistolHandSocket);
   console.info('v0.7.7: coldre e tonfa guardada ancorados ao quadril animado.');
   // Apenas encaixe da peça — sem forçar rotação do punho nem dedos do urso.
   tonfaHandSocket.position.set(-.015,.085,.024);
@@ -519,6 +576,7 @@ function attachTonfaToRig(){
   applyBeltPlacement();
   refreshTonfaState();
   loadDetailedBeltAssets();
+  loadPistolAsset();
   return true;
 }
 
@@ -559,12 +617,86 @@ function loadDetailedBeltAssets(){
     const item=normalizeAccessoryScene(gltf.scene,.255,'holster');
     rightHolster.clear();
     rightHolster.add(item);
+    rightHolster.add(pistolHolsterSocket);
+    refreshPistolState();
     rightHolster.visible=true;
   },undefined,error=>{
     rightHolster.visible=false;
     console.warn('Não foi possível carregar coldre.glb.',error);
   });
 }
+
+// A MESMA pistola 3D fica no coldre ou na mão; nenhum duplicado na cena.
+function applyPistolPlacement(){
+  if(!pistolModel || !pistolModel.parent)return;
+  const inHand=pistolModel.parent===pistolHandSocket;
+  const base=inHand?pistolAdjustments.pistolaDescanso:pistolAdjustments.pistolaNoColdre;
+  const aim=pistolAdjustments.pistolaMira;
+  const t=inHand?THREE.MathUtils.clamp(aimBlend,0,1):0;
+  pistolModel.position.set(
+    THREE.MathUtils.lerp(base.x,aim.x,t),
+    THREE.MathUtils.lerp(base.y,aim.y,t),
+    THREE.MathUtils.lerp(base.z,aim.z,t)
+  );
+  const getAngle=(axis)=>THREE.MathUtils.degToRad(
+    base[axis]+normalizeAngleDegrees(aim[axis]-base[axis])*t);
+  pistolModel.rotation.set(getAngle('rx'),getAngle('ry'),getAngle('rz'),'XYZ');
+}
+function refreshPistolState(){
+  if(!pistolModel || !pistolHandSocket || !pistolHolsterSocket)return;
+  // No gameplay normal a pistola permanece guardada e o tiro bloqueado.
+  const inHand=equipped==='arma' && FIREARM_TEST_MODE && pistolAssetLoaded;
+  const parent=inHand?pistolHandSocket:pistolHolsterSocket;
+  if(pistolModel.parent!==parent)parent.add(pistolModel);
+  pistolModel.visible=pistolAssetLoaded;
+  applyPistolPlacement();
+  const aimButton=el('aim-button');
+  if(aimButton)aimButton.hidden=!inHand;
+  const cross=el('aim-crosshair');
+  if(cross)cross.hidden=!(inHand && aiming);
+  if(!inHand) aiming=false;
+}
+function loadPistolAsset(){
+  new GLTFLoader().load(PISTOL_FILE,gltf=>{
+    if(!pistolModel || !characterModel)return;
+    const item=normalizeAccessoryScene(gltf.scene,.235,'pistol');
+    pistolModel.clear();pistolModel.add(item);
+    pistolAssetLoaded=true;
+    refreshPistolState();
+    console.info('Pistola Meshy texturizada carregada: coldre e mão usam a mesma peça.');
+  },undefined,error=>{
+    pistolAssetLoaded=false;
+    console.warn('Falha ao carregar pistola.glb',error);
+    notify('Não encontrei pistola.glb: confira se foi enviado ao GitHub.',5000);
+  });
+}
+function setAiming(value){
+  if(equipped!=='arma' || !FIREARM_TEST_MODE || !pistolAssetLoaded){aiming=false;return;}
+  aiming=Boolean(value);
+  const button=el('aim-button');
+  if(button){button.classList.toggle('pressed',aiming);button.textContent=aiming?'🎯 MIRANDO':'🎯 MIRAR';}
+  refreshPistolState();
+}
+function updateAimReticle(dt){
+  const available=equipped==='arma'&&aiming&&FIREARM_TEST_MODE;
+  const cross=el('aim-crosshair');
+  if(cross)cross.hidden=!available;
+  if(!available)return;
+  lastAimCheck+=dt;
+  if(lastAimCheck<.12)return;
+  lastAimCheck=0;
+  // A cruz marca o ponto onde um disparo SIMULADO orientado pelo centro
+  // da câmera encontraria o cenário. Ainda não há tiro nem dano.
+  camera.updateMatrixWorld();
+  aimRaycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+  const hits=aimRaycaster.intersectObjects(aimColliders,false);
+  const label=el('aim-target-label');
+  if(hits.length){
+    aimTargetPoint.copy(hits[0].point);
+    if(label)label.textContent=`ALVO VISUAL • ${hits[0].distance.toFixed(0)} m`;
+  }else if(label){label.textContent='MIRA LIVRE';}
+}
+
 // Ajuste fino opcional pelo telefone: abra ?ajuste=1.
 // Permite corrigir poucos centímetros sem remontar ou reenviar o jogo.
 function enableAccessoryCalibration(){
@@ -575,7 +707,7 @@ function enableAccessoryCalibration(){
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(254px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-      <b>AJUSTE FINO 0.7.6</b>
+      <b>AJUSTE FINO 0.7.9</b>
       <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
     </div>
     <div id="cal-body">
@@ -585,6 +717,9 @@ function enableAccessoryCalibration(){
           <option value="coldre">Coldre • lado direito</option>
           <option value="maoDescanso">Tonfa • mão em descanso</option>
           <option value="maoAtaque">Tonfa • mão em ataque</option>
+          <option value="pistolaNoColdre">Pistola • guardada no coldre</option>
+          <option value="pistolaDescanso">Pistola • mão em descanso</option>
+          <option value="pistolaMira">Pistola • mão em mira</option>
         </select>
       </label>
       <div id="cal-readout" aria-live="polite" style="font-size:11px;line-height:1.6;margin:6px 0"></div>
@@ -606,7 +741,7 @@ function enableAccessoryCalibration(){
         <button id="cal-rotate-back" type="button" class="cal-secondary">Girar Y +180°</button>
         <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar rotação</button>
       </details>
-      <button id="cal-copy" type="button" class="cal-secondary">Copiar meus 4 ajustes</button>
+      <button id="cal-copy" type="button" class="cal-secondary">Copiar os 7 ajustes</button>
       <small style="display:block;margin-top:5px;opacity:.85">Todos os valores são salvos no navegador. O estado ataque não altera a posição guardada.</small>
       <small id="cal-message" role="status" style="display:block;min-height:12px;margin-top:4px;color:#ffe19b"></small>
     </div>`;
@@ -619,8 +754,10 @@ function enableAccessoryCalibration(){
   const message=panel.querySelector('#cal-message');
   const previewButton=panel.querySelector('#cal-preview');
   const isHand=()=>['maoDescanso','maoAtaque'].includes(choice.value);
+  const isPistol=()=>PISTOL_NAMES.includes(choice.value);
+  const isPistolHand=()=>['pistolaDescanso','pistolaMira'].includes(choice.value);
   const show=()=>{
-    const p=accessoryAdjustments[choice.value];
+    const p=calibValue(choice.value);
     readout.innerHTML=`<span>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}</span><br><span>Giro: X ${p.rx.toFixed(2)}° · Y ${p.ry.toFixed(2)}° · Z ${p.rz.toFixed(2)}°</span>`;
     panel.querySelector('#cal-preview-wrap').hidden=choice.value!=='maoAtaque';
     previewButton.textContent=comboPreviewLocked?'Soltar pose de ataque':'Congelar pose de ataque';
@@ -648,11 +785,11 @@ function enableAccessoryCalibration(){
   };
   previewButton.addEventListener('click',()=>comboPreviewLocked?endPreview() : beginPreview());
   const change=(axis,delta)=>{
-    const p=accessoryAdjustments[choice.value];
+    const p=calibValue(choice.value);
     const next=p[axis]+delta;
     p[axis]=AXES_ROTATION.includes(axis) ? normalizeAngleDegrees(next)
       : Math.round(THREE.MathUtils.clamp(next,-1.5,2)*1000)/1000;
-    applyAccessoryPlacement();saveAccessoryAdjustments();show();
+    applyAccessoryPlacement();saveCalibrations();show();
   };
   const addButton=(parent,name,axis,dir,isRotation)=>{
     const btn=document.createElement('button');btn.type='button';btn.textContent=name;
@@ -674,20 +811,25 @@ function enableAccessoryCalibration(){
   choice.addEventListener('change',()=>{
     endPreview();message.textContent='';
     if(isHand() && started && talked.size>=3 && equipped!=='tonfa')selectEquipment('tonfa');
+    if(isPistolHand() && started && equipped!=='arma')selectEquipment('arma');
+    if(isPistol() && started){
+      if(choice.value==='pistolaNoColdre' && equipped==='arma')selectEquipment('punhos');
+      setAiming(choice.value==='pistolaMira');
+    }
     show();
   });
   panel.querySelector('#cal-rotate-back').addEventListener('click',()=>change('ry',180));
   const resetAxes=axes=>{
     const key=choice.value;
-    for(const axis of axes)accessoryAdjustments[key][axis]=accessoryDefaults[key][axis];
-    applyAccessoryPlacement();saveAccessoryAdjustments();show();
+    for(const axis of axes)calibValue(key)[axis]=calibDefault(key)[axis];
+    applyAccessoryPlacement();saveCalibrations();show();
     message.textContent='Restaurado apenas o estado selecionado.';
   };
   panel.querySelector('#cal-reset-pos').addEventListener('click',()=>resetAxes(AXES_POSITION));
   panel.querySelector('#cal-reset-rot').addEventListener('click',()=>resetAxes(AXES_ROTATION));
   panel.querySelector('#cal-copy').addEventListener('click',async()=>{
-    const result=JSON.stringify(accessoryAdjustments,null,2);
-    try{await navigator.clipboard.writeText(result);message.textContent='Quatro ajustes copiados!';}
+    const result=JSON.stringify({...accessoryAdjustments,...pistolAdjustments},null,2);
+    try{await navigator.clipboard.writeText(result);message.textContent='Sete ajustes copiados!';}
     catch(e){message.textContent='Cópia indisponível neste navegador.';}
   });
   panel.querySelector('#cal-collapse').addEventListener('click',()=>{
@@ -703,16 +845,27 @@ function selectEquipment(item){
     notify('Tonfa 3D ainda não carregou ou não há osso da mão. Aguarde.',4200);
     return;
   }
-  if(item==='arma'){notify('Arma de fogo: aguardando futura missão de habilitação.');return;}
+  if(item==='arma' && !FIREARM_TEST_MODE){
+    notify('Arma de fogo: aguardando futura missão de habilitação.');return;
+  }
+  if(item==='arma' && (!pistolAssetLoaded || !rightHandBone)){
+    notify('Modelo da pistola ainda não carregou. Aguarde.',3500);return;
+  }
+  if(item!=='arma')setAiming(false);
   equipped=item;
-  el('weapon-label').textContent=item==='tonfa'?'🥢 TONFA':'👊 PUNHOS';
-  el('action').querySelector('span').textContent=item==='tonfa'?'🥢':'👊';
+  el('weapon-label').textContent=item==='tonfa'?'🥢 TONFA':item==='arma'?'🎯 PISTOLA':'👊 PUNHOS';
+  el('action').querySelector('span').textContent=item==='tonfa'?'🥢':item==='arma'?'🎯':'👊';
   refreshTonfaState();
+  refreshPistolState();
   el('equipment-panel').hidden=true;
-  notify(item==='tonfa'?'Tonfa na mão direita!':'Tonfa guardada à esquerda do cinto.');
+  notify(item==='arma'?'Teste de empunhadura e mira: disparos desabilitados.':item==='tonfa'?'Tonfa na mão direita!':'Equipamentos guardados nos respectivos suportes.');
 }
 function doAction(){
   if(!started)return;
+  if(equipped==='arma'){
+    notify('Teste de mira apenas: disparos serão liberados numa futura missão.',2000);
+    return;
+  }
   if(comboPreviewLocked || comboActive || comboBlend>.2 || actionElapsed<.48)return;
   actionElapsed=0;
   // Somente demonstração: não aplicamos dano aos cidadãos das missões.
@@ -833,6 +986,13 @@ function buildScene(){
   player=new THREE.Group();player.position.copy(playerPos);player.position.y=GROUND_Y;scene.add(player);
   createGroundShadow();makeAttackEffect();makeTonfa();
   clock=new THREE.Clock();
+  // Apenas o cenário físico é alvo visual da mira, nunca o Tio Urso.
+  scene.traverse(o=>{
+    if(!o.isMesh)return;
+    let p=o,insidePlayer=false;
+    while(p){if(p===player){insidePlayer=true;break;}p=p.parent;}
+    if(!insidePlayer)aimColliders.push(o);
+  });
   onResize();window.addEventListener('resize',onResize);
   camera.position.set(0,1.8,-13-CAM_DISTANCE_WIDE);
   return new Promise(resolve=>{
@@ -919,8 +1079,8 @@ function update(dt){
   if(!isBlocked(player.position.x,z))player.position.z=z;else velocitySmooth.z=0;
   const speed=velocitySmooth.length();
   walking=speed>.12;
-  if(walking){
-    const wantedRot=Math.atan2(velocitySmooth.x,velocitySmooth.z);
+  if(walking || aiming){
+    const wantedRot=aiming?Math.atan2(forward.x,forward.z):Math.atan2(velocitySmooth.x,velocitySmooth.z);
     const delta=Math.atan2(Math.sin(wantedRot-player.rotation.y),Math.cos(wantedRot-player.rotation.y));
     player.rotation.y+=delta*(1-Math.exp(-dt*12));
   }
@@ -944,6 +1104,17 @@ function update(dt){
     walkAnim.timeScale=THREE.MathUtils.clamp(speed/PLAYER_SPEED,.6,1.3);
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
+    aimBlend+=(Number(aiming&&equipped==='arma')-aimBlend)*(1-Math.exp(-dt*11));
+    // Pose de mira provisória: rotação ADITIVA DO OMBRO após mixer.update().
+    // Não altera dedos/punho, não acumula deformação entre quadros.
+    if(rightUpperArm && aimBlend>.001){
+      const parentWorld=rightUpperArm.parent.getWorldQuaternion(new THREE.Quaternion());
+      const playerWorld=player.getWorldQuaternion(new THREE.Quaternion());
+      const localX=new THREE.Vector3(1,0,0).applyQuaternion(playerWorld).applyQuaternion(parentWorld.invert());
+      const change=new THREE.Quaternion().setFromAxisAngle(localX,-.83*aimBlend);
+      rightUpperArm.quaternion.premultiply(change).normalize();
+    }
+    applyPistolPlacement();
     // Blend only the accessory's relative socket transform, never the finger bones.
     handAttackBlend+=(Number(comboActive)-handAttackBlend)*(1-Math.exp(-dt*10));
     applyHandPlacement(handAttackBlend);
@@ -990,17 +1161,20 @@ function update(dt){
   }
   const behindX=Math.sin(camYaw),behindZ=Math.cos(camYaw);
   const landscape=window.innerWidth>window.innerHeight;
-  const distance=landscape?CAM_DISTANCE_WIDE:CAM_DISTANCE_TALL;
+  const distance=(landscape?CAM_DISTANCE_WIDE:CAM_DISTANCE_TALL)-.30*aimBlend;
   const flatDistance=distance*Math.cos(camPitch);
-  const eyeLevel=CAM_TARGET_HEIGHT+distance*Math.sin(camPitch);
+  const eyeLevel=CAM_TARGET_HEIGHT+.14*aimBlend+distance*Math.sin(camPitch);
+  const shoulderX=Math.cos(camYaw)*.36*aimBlend;
+  const shoulderZ=-Math.sin(camYaw)*.36*aimBlend;
   camPosWanted.set(
-    player.position.x+behindX*flatDistance,
+    player.position.x+behindX*flatDistance+shoulderX,
     player.position.y+Math.max(.44,eyeLevel),
-    player.position.z+behindZ*flatDistance
+    player.position.z+behindZ*flatDistance+shoulderZ
   );
   camera.position.lerp(camPosWanted,1-Math.exp(-dt*10));
-  targetPos.set(player.position.x,player.position.y+CAM_TARGET_HEIGHT,player.position.z);
+  targetPos.set(player.position.x+shoulderX*.45,player.position.y+CAM_TARGET_HEIGHT+.14*aimBlend,player.position.z+shoulderZ*.45);
   camera.lookAt(targetPos);
+  updateAimReticle(dt);
   const c=nearbyCitizen();const hint=el('action-hint');
   if(c){hint.classList.add('visible');hint.textContent=talked.has(c.id)?`✓ ${c.name} já foi atendido`:`✋ FALAR com ${c.name}`;}
   else hint.classList.remove('visible');
@@ -1071,7 +1245,12 @@ function installControls(){
   el('equip-fists').addEventListener('click',()=>selectEquipment('punhos'));
   el('equip-tonfa').addEventListener('click',()=>selectEquipment('tonfa'));
   el('equip-firearm').addEventListener('click',()=>selectEquipment('arma'));
-  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space')doAction();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;});
+  el('aim-button').addEventListener('click',()=>setAiming(!aiming));
+  if(FIREARM_TEST_MODE){
+    el('equip-firearm').disabled=false;
+    el('equip-firearm').querySelector('small').textContent='🧪 TESTE VISUAL • sem disparos';
+  }
+  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space')doAction();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;if(e.code==='KeyF')setAiming(!aiming);});
   window.addEventListener('keyup',e=>pressedKeys.delete(e.code));
   window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;clearStick();});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.

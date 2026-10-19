@@ -1,24 +1,27 @@
-TIO URSO: PATRULHA — v0.7.8 — CÂMERA LIVRE, SOMBRAS E PATA NO COLETE
+TIO URSO: PATRULHA — v0.7.9 (PISTOLA GLB + AJUSTE DE MIRA)
 
-ATUALIZAÇÃO PELO CELULAR (GITHUB PAGES)
-1. Extraia este ZIP.
-2. Acesse github.com/wesleyhulk-pixel/tio-urso-patrulha
-3. Use Add file > Upload files.
-4. Substitua index.html e app.js (na raiz, sem pasta).
-5. Confirme em Commit changes e espere o GitHub Pages publicar.
-6. Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=078
+ATENÇÃO: atualize a versão 0.7.8 ANTES desta, caso ainda não tenha publicado.
 
-NÃO APAGUE OU REENVIE os GLBs e style.css: arquivos existentes são aproveitados.
+1. Extraia o ZIP e envie index.html, app.js e pistola.glb à raiz do
+   repositório github.com/wesleyhulk-pixel/tio-urso-patrulha.
+2. Mantenha os GLBs existentes: tio-urso.glb, tonfa.glb e coldre.glb,
+   e o arquivo style.css. Não os apague nem os substitua.
+3. Confirme Commit changes e aguarde GitHub Pages.
+4. Jogo normal: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=079
+5. Teste/calibração: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=079
 
-NOVIDADES:
-- Arraste o dedo na cena para direita/esquerda e cima/baixo para controlar a câmera.
-- Câmera mais próxima em paisagem; enquadramento de retrato preservado.
-- Sombra dinâmica projetada pela geometria animada com sombra suave sob o personagem.
-- Emblema de pata branco/azul/dourado aderido à parte de trás do colete.
+No painel EQUIP., selecione PISTOLA (somente no modo de ajuste).
+No painel de calibração, escolha:
+ - Pistola • guardada no coldre
+ - Pistola • mão em descanso
+ - Pistola • mão em mira
 
-MANTIDOS: GLB original, texturas, caminhada, corrida automática, ataque, tonfa,
-coldre, posições calibradas, missão, XP e painel de ajuste de equipamentos.
+Use POSIÇÃO e ROTAÇÃO XYZ; as configurações são salvas no navegador.
+Toque 🎯 MIRAR para visualizar cruz de mira; arraste a tela para apontar.
+O alvo é baseado no raio central da câmera contra a geometria do cenário.
+A arma NÃO dispara e não causa dano, pois a habilitação ainda não foi criada.
+Mantenha as calibrações de tonfa e coldre já feitas no navegador.
 
-OBSERVAÇÃO: testado estaticamente e validado o JavaScript; ainda é necessário
-verificar a imagem e o desempenho reais no aparelho Android. Se cair o FPS,
-poderemos ajustar a resolução da sombra nesta versão.
+Este ZIP possui uma pistola GLB com texturas otimizadas para 1K, 4,4 MB;
+o modelo 3D original do usuário foi preservado sem alterações.
+TESTES: verificar a orientação da arma na mão e no coldre no próprio Android.
