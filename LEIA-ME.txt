@@ -1,23 +1,37 @@
-TIO URSO: PATRULHA — v0.9.0 — MAPA INICIAL (REGIÃO CENTRAL)
+TIO URSO: PATRULHA — v0.9.1 — REFINAMENTO DA QUADRA DA MATRIZ
 
-INSTALAÇÃO NO GITHUB PELO CELULAR
-Envie / substitua SOMENTE index.html, app.js e LEIA-ME.txt.
-Os demais arquivos (GLBs, CSS, mp3, manifest e ícones) precisam permanecer
-no repositório. Não é necessário reenviar modelos nem áudio.
+INSTALAÇÃO PELO CELULAR NO GITHUB
+Substituir apenas: index.html, app.js e LEIA-ME.txt.
+Manter no repositório: tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb,
+style.css, áudios MP3, manifest.webmanifest e ícones PNG.
+Não enviar ZIP fechado para o GitHub: extrair e enviar 3 arquivos.
 
-MAPA v0.9.0 — MODELAGEM ESQUEMÁTICA
-O jogador aparece em frente à Central da Guarda Municipal — Rua Eurilemos, 530.
-Inclui trechos ilustrativos da Av. Arapongas, Rua Eurilemos, Rua Flamingos,
-Rua Falcão e Rua Drongo; Praça da Matriz com igreja e coreto; Central da Guarda,
-estacionamento, Correios, Secretaria da Educação, Receita Estadual e Donald's Lanches.
-Também há acesso visual aos fundos dos Correios e comércio genérico.
+ALTERAÇÕES DO MAPA (GEOMETRIA ILUSTRATIVA, NÃO GEOREFERENCIADA)
+- Rua Eurilemos entre Av. Arapongas e Rua Flamingos, com conexão por cruzamentos.
+- Bordas norte/sul correspondem às referências da Rua Falcão e Rua Drongo.
+- Praça com calçadão, igreja para o lado da avenida, coreto perto da Drongo,
+  quiosque, bancos, arborização e caminhos de pedestres.
+- Bloco institucional agrupado no outro lado da Eurilemos: Central, Receita,
+  Correios e Secretaria de Educação; Donald's Lanches próximo à Falcão,
+  junto à Receita; estacionamento da GM e acesso de serviço dos Correios.
+- Spawn continua na calçada EM FRENTE à Central: Rua Eurilemos, 530.
+- Minimap acompanha reorganização da praça, ruas e prédios.
+- Mantidos 3 cidadãos para a missão inicial.
 
-IMPORTANTE: isto NÃO é réplica fiel/georreferenciada da cidade. Ruas, prédios,
-orientação relativa e dimensões estão dispostos provisoriamente para testar a
-primeira área sem sobrecarregar o celular. Para reconstruir o traçado correto,
-precisaremos confrontar o mapa aéreo e/ou dados cartográficos oficiais.
+ATENÇÃO
+Desenho da quadra derivado de fotos e captura aérea disponibilizadas pelo
+usuário, e da explicação sobre as ruas. Não é levantamento topográfico,
+não contém coordenadas reais das fachadas, nem substitui validação presencial.
+As larguras e distâncias são dimensões de jogo aproximadas. Precisamos aferir
+os detalhes da Rua Eurilemos e os alinhamentos antes de chamar o mapa de fiel.
 
-PRESERVADO: GLBs e texturas de Tio Urso, tonfa, coldre, pistola; câmera;
-pista de áudio, pegada, mira, marca da pata; animações, equipamentos e XP.
+PRESERVADO
+GLBs originais, texturas, ossos, animações, tonfa, coldre, pistola,
+calibrações de mira, pata nas costas, áudio, HUD, controle touch,
+corrida automática e pontuação por atendimento comunitário.
 
-Link do jogo após atualizar: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=090
+TESTE
+Abra no Chrome após publicar:
+https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=091
+Gire a câmera, confira o spawn da Central e caminhe entre o bloco
+institucional e a praça para testar caminhos e colisão.

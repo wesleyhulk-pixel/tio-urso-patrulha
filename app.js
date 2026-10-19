@@ -1,3 +1,6 @@
+// v0.9.1: refinamento com imagem aérea: Avenida Arapongas a oeste, Flamingos a leste,
+// Falcão a norte, Drongo a sul e Eurilemos ligando as extremidades.
+// Praça, igreja, coreto, conjunto institucional e calçadas reorganizados.
 // v0.9.0: mapa inicial da Central da Guarda e Praça da Matriz, geometria provisória
 // para teste em celular. Traçado de quadras e edifícios ilustrativo até
 // conferência com vista aérea. Preserva mecânicas, controles e GLBs anteriores.
@@ -63,16 +66,20 @@ const PAW_ADJUST_MODE = new URLSearchParams(location.search).has('pata');
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
-const LIMIT = 48;
+const LIMIT = 57;
 // A configuração abaixo permite ajustar o mapa depois com a foto aérea.
 // As coordenadas são LOCAIS ao jogo, não latitudes/longitudes reais.
-const MAPA_VERSAO = "CENTRO · MATRIZ / CENTRAL — ESQUEMA v0.9.0";
+const MAPA_VERSAO = "CENTRO · MATRIZ / CENTRAL — SATÉLITE v0.9.1";
+// x negativo: direção da Av. Arapongas; x positivo: R. Flamingos.
+// z negativo: direção da R. Falcão; z positivo: R. Drongo.
+// Eurilemos atravessa o conjunto entre a praça e os prédios públicos.
+// ESCALA ILUSTRATIVA: NÃO é planta georreferenciada nem cópia da imagem do satélite.
 const MAPA_RUAS = [
-  {nome:"Rua Eurilemos", eixo:"z", pos:0, largura:7.6},
-  {nome:"Rua Falcão", eixo:"z", pos:-39, largura:7.0},
-  {nome:"Rua Drongo", eixo:"z", pos:39, largura:7.0},
-  {nome:"Av. Arapongas", eixo:"x", pos:29, largura:9.2},
-  {nome:"Rua Flamingos", eixo:"x", pos:-30, largura:7.0}
+  {nome:"Av. Arapongas", eixo:"z", pos:-43, largura:9.4},
+  {nome:"Rua Flamingos", eixo:"z", pos:43, largura:7.2},
+  {nome:"Rua Falcão", eixo:"x", pos:-42, largura:7.5},
+  {nome:"Rua Drongo", eixo:"x", pos:42, largura:7.3},
+  {nome:"Rua Eurilemos", eixo:"x", pos:-2.5, largura:7.2}
 ];
 
 const el = id => document.getElementById(id);
@@ -103,7 +110,7 @@ function enableReticleCalibration(){
   panel.setAttribute('aria-label','Ajuste fino exclusivo da cruz de mira');
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(290px,60vw);max-height:72vh;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:#071b2df2;border:1px solid #ffce63;color:white;border-radius:12px;padding:10px;box-shadow:0 6px 22px #0009;font:12px system-ui;';
   panel.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.9.0</strong><button id="reticle-toggle" type="button">−</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.9.1</strong><button id="reticle-toggle" type="button">−</button></div>
     <div id="reticle-body">
       <p style="font-size:11px;line-height:1.45;color:#dfebfa;margin:8px 0">Movimente a CRUZ na tela. O braço e os equipamentos calibrados não serão alterados.</p>
       <div id="reticle-values" style="padding:8px;background:#18354b;border-radius:7px;text-align:center;font-weight:700" aria-live="polite"></div>
@@ -395,7 +402,7 @@ const AUTO_RUN_OFF_PRESSURE = 0.75;
 const camPosWanted = new THREE.Vector3();
 // Spawn real narrativo: calçada diante da Central, R. Eurilemos, 530.
 // Coordenadas de jogo provisórias, até aferir a quadra por imagem aérea.
-const playerPos = new THREE.Vector3(-5.25,0,-6.5);
+const playerPos = new THREE.Vector3(-12,0,-8.4);
 const targetPos = new THREE.Vector3();
 const motion = new THREE.Vector3();
 const forward = new THREE.Vector3();
@@ -1545,123 +1552,161 @@ function townBench(x,z,angle=0){
   scene.add(b);
 }
 function buildChurch(){
-  // Volume inspirado na Matriz: NÃO é réplica arquitetônica da igreja real.
-  const x=18.2,z=11.0;
-  const facade=cityBlock(x,z,11.2,12.5,7.5,0xd6d9d5,'IGREJA MATRIZ','south');
-  const roof=new THREE.Mesh(new THREE.ConeGeometry(8.4,2.9,4),standard(0x686b78));
-  roof.rotation.y=Math.PI/4;roof.scale.z=1.13;roof.position.set(0,8.95,0);facade.add(roof);
-  const tower=new THREE.Mesh(new THREE.BoxGeometry(2.9,12.6,3.2),standard(0xe7e3dd));
-  tower.position.set(-3.7,6.3,-1.4);facade.add(tower);tower.castShadow=true;
-  const belfry=new THREE.Mesh(new THREE.ConeGeometry(2.4,3.2,4),standard(0x747881));
-  belfry.rotation.y=Math.PI/4;belfry.position.set(-3.7,14.1,-1.4);facade.add(belfry);
-  const crossMat=standard(0xe9c973,.4);
-  const v=new THREE.Mesh(new THREE.BoxGeometry(.20,2,.20),crossMat);v.position.set(-3.7,16.55,-1.4);facade.add(v);
-  const h=new THREE.Mesh(new THREE.BoxGeometry(1.2,.20,.20),crossMat);h.position.set(-3.7,16.9,-1.4);facade.add(h);
-  const door=new THREE.Mesh(new THREE.BoxGeometry(2.25,3.1,.15),standard(0x765847));
-  door.position.set(0,1.55,6.35);facade.add(door);
-  // Pequenas escadarias na entrada.
+  // Silhueta da Igreja Matriz voltada para o lado da Avenida Arapongas.
+  // Arquitetura provisória baseada em foto, sem reproduzir o prédio literalmente.
+  const x=-25.5,z=20;
+  const church=cityBlock(x,z,13.2,15.5,7.5,0xe7e8e0,'IGREJA MATRIZ','west');
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(10.0,3.0,4),standard(0x777b85));
+  roof.rotation.y=Math.PI/4;roof.scale.z=1.08;roof.position.set(0,9.1,0);roof.castShadow=true;church.add(roof);
+  const tower=new THREE.Mesh(new THREE.BoxGeometry(3.1,11.2,3.2),standard(0xecebe5));
+  tower.position.set(-4.8,5.6,-3.3);tower.castShadow=true;church.add(tower);
+  const cupola=new THREE.Mesh(new THREE.ConeGeometry(2.25,3.0,4),standard(0x737a83));
+  cupola.rotation.y=Math.PI/4;cupola.position.set(-4.8,12.7,-3.3);cupola.castShadow=true;church.add(cupola);
+  const crossMat=standard(0xd9b962);
+  const cross1=new THREE.Mesh(new THREE.BoxGeometry(.15,1.45,.15),crossMat);
+  cross1.position.set(-4.8,15,-3.3);church.add(cross1);
+  const cross2=new THREE.Mesh(new THREE.BoxGeometry(.84,.15,.15),crossMat);
+  cross2.position.set(-4.8,15.22,-3.3);church.add(cross2);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(.12,3.1,2.3),standard(0x805c4c));
+  door.position.set(-6.66,1.56,1.3);church.add(door);
+  const stained=standard(0x5c8b9b,.3);
+  const window=new THREE.Mesh(new THREE.BoxGeometry(.10,2.3,1.25),stained);
+  window.position.set(-6.67,4.8,1.2);church.add(window);
   for(let i=0;i<3;i++){
-    const step=new THREE.Mesh(new THREE.BoxGeometry(3.6,.16,1),standard(0xb2b7b5));
-    step.position.set(0,.08+i*.13,6.9+i*.62);facade.add(step);
+    const step=new THREE.Mesh(new THREE.BoxGeometry(.65+i*.22,.13,3.3),standard(0xc7c7c2));
+    step.position.set(-7.2-i*.50,.11+i*.11,1.2);church.add(step);
   }
 }
 function buildGazebo(){
-  const gazebo=new THREE.Group();gazebo.position.set(29,-0.0,-9);scene.add(gazebo);
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(3.0,3.0,.38,8),standard(0xc8c3b2));
-  base.position.y=.19;gazebo.add(base);base.receiveShadow=true;
+  // Coreto próximo ao lado da R. Drongo, na praça junto à Matriz.
+  const x=19.2,z=29.0;
+  const gazebo=new THREE.Group();gazebo.position.set(x,0,z);scene.add(gazebo);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(3.15,3.15,.33,8),standard(0xcbbda5));
+  base.position.y=.165;base.receiveShadow=true;gazebo.add(base);
   for(let i=0;i<8;i++){
     const a=i*Math.PI/4;
-    const post=new THREE.Mesh(new THREE.CylinderGeometry(.10,.12,3.0,6),standard(0xf7f4e8));
-    post.position.set(Math.cos(a)*2.55,1.88,Math.sin(a)*2.55);gazebo.add(post);
+    const column=new THREE.Mesh(new THREE.CylinderGeometry(.11,.12,3,7),standard(0xf3f0e5));
+    column.position.set(Math.cos(a)*2.6,1.84,Math.sin(a)*2.6);gazebo.add(column);
   }
-  const roof=new THREE.Mesh(new THREE.ConeGeometry(3.55,2.1,8),standard(0x536d75));
-  roof.position.y=4.37;roof.castShadow=true;gazebo.add(roof);
-  const sign=labelSprite('CORETO','#ffffff','#174157',1.9,.42);sign.position.set(0,4.65,0);// Etiqueta fica sobre o coreto e não na origem da cena.
-  scene.add(sign);sign.position.set(29,4.95,-9);
-  mapLandmarks.push({title:'Coreto',x:29,z:-9});
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(3.65,2.1,8),standard(0x516976));
+  roof.position.y=4.4;roof.castShadow=true;gazebo.add(roof);
+  const sign=labelSprite('CORETO','#ffffff','#174157',2.15,.42);
+  sign.position.set(x,5,z);scene.add(sign);
+  mapLandmarks.push({title:'Coreto • Rua Drongo',x,z});
+}
+function townPath(x,z,w,d){
+  const path=townPaving(x,z,w,d,0xbeb5a6,.117);
+  path.receiveShadow=true;
+}
+function makeKiosk(x,z){
+  // Quiosque de praça, provisório para referência ao comércio local.
+  const b=new THREE.Group();b.position.set(x,0,z);scene.add(b);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(4.4,2.6,3.0),standard(0xe4d6ba));
+  base.position.y=1.3;base.castShadow=true;b.add(base);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(3.0,1.5,4),standard(0x506b59));
+  roof.rotation.y=Math.PI/4;roof.position.y=3.30;b.add(roof);
+  const sign=labelSprite('QUIOSQUE','#ffffff','#315742',2.0,.43);
+  sign.position.set(x,4.5,z);scene.add(sign);
+  obstacles.push({x1:x-2.5,x2:x+2.5,z1:z-1.9,z2:z+1.9});
+  mapLandmarks.push({title:'Quiosque da Praça',x,z});
+}
+function makeParkingBay(x,z,w,d,title){
+  townPaving(x,z,w,d,0x89908b,.075);
+  for(let dx=-w/2+2;dx<w/2-1;dx+=3.4)townLine(x+dx,z,.11,d-1.0,0xecece8);
+  const sign=labelSprite(title,'#ffffff','#19435f',3.6,.44);
+  sign.position.set(x,2.4,z+d/2+.5);scene.add(sign);
+  mapLandmarks.push({title,x,z});
 }
 function buildDowntownMap(){
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(125,125),standard(0x8da77e));
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(138,138),standard(0x91a17f));
   floor.rotation.x=-Math.PI/2;floor.position.y=-.018;floor.receiveShadow=true;scene.add(floor);
-  // Ruas LOCAIS organizadas como esquema de circulação; não são extração GIS.
-  for(const st of MAPA_RUAS){
-    if(st.eixo==='z')road(st.pos,0,st.largura,103);
-    else road(0,st.pos,103,st.largura);
-  }
-  // Duas calçadas contínuas em cada rua. Larguras aproximadas de jogo.
-  for(const st of MAPA_RUAS){
-    const out=st.largura/2+1.30;
-    for(const side of [-1,1]){
-      if(st.eixo==='z')townPaving(st.pos+side*out,0,2.5,101,0xcec9bb,.055);
-      else townPaving(0,st.pos+side*out,101,2.5,0xcec9bb,.055);
-    }
-  }
-  // Eixos centrais pintados nas vias.
-  for(const st of MAPA_RUAS){
-    for(let d=-46;d<46;d+=7.5){
-      if(st.eixo==='z')townLine(st.pos,d,.10,3.1,0xd8c88d);
-      else townLine(d,st.pos,3.1,.10,0xd8c88d);
-    }
-  }
-  for(const z of [29,-30])paveCrosswalk(0,z,false);
-  for(const x of [-39,39])paveCrosswalk(x,29,true);
-  // A Praça da Matriz ocupa o miolo entre Eurilemos e Drongo neste protótipo.
-  townPaving(20.2,-.5,29.2,42.0,0xd4ccb9,.08);
-  townPaving(20.2,-.5,2.4,42.0,0xbab3a0,.113);
-  townPaving(20.2,-.5,29.2,2.1,0xbab3a0,.115);
-  // Pequeno canteiro verde e mobiliário da praça.
-  for(const [x,z] of [[9,-13],[12,-7],[12,0],[29,1],[29,13],[10,18]]){
-    const soil=box(2.4,.06,2.4,0x749a65,x,.118,z); soil.receiveShadow=true;
-    tree(x,z);
-  }
-  for(const [x,z,r] of [[14,-12,0],[25,16,Math.PI],[9,7,Math.PI/2],[30,6,-Math.PI/2]])townBench(x,z,r);
-  buildChurch();buildGazebo();
-  const plazaSign=labelSprite('PRAÇA DA MATRIZ','#ffffff','#456d56',3.7,.58);
-  plazaSign.position.set(19,3,-17.5);scene.add(plazaSign);
-  // Quadra administrativa, a oeste da Rua Eurilemos.
-  const central=cityBlock(-15.2,-6.7,13.5,10.0,5.3,0xb7c6c9,'CENTRAL DA GUARDA','east');
-  const blueBand=new THREE.Mesh(new THREE.BoxGeometry(.09,.72,13),standard(0x234b72));
-  blueBand.rotation.y=Math.PI/2;blueBand.position.set(6.85,4.5,0);central.add(blueBand);
-  const mainDoor=new THREE.Mesh(new THREE.BoxGeometry(.1,2.75,2.2),standard(0x345769,.34));
-  mainDoor.position.set(6.79,1.4,0);central.add(mainDoor);
-  const frontSign=labelSprite('GUARDA MUNICIPAL','#ffffff','#18416a',3.6,.48);
-  frontSign.position.set(-7.60,3.4,-6.7);scene.add(frontSign);
-  // Jogador inicia diante da entrada, na calçada da Rua Eurilemos.
-  const startMark=new THREE.Mesh(new THREE.RingGeometry(.48,.62,24),new THREE.MeshBasicMaterial({color:0x72e1ad,side:THREE.DoubleSide}));
-  startMark.rotation.x=-Math.PI/2;startMark.position.set(playerPos.x,.095,playerPos.z);scene.add(startMark);
-  const spawnSign=labelSprite('INÍCIO DO PLANTÃO','#ffffff','#12644f',3.25,.49);
-  spawnSign.position.set(-5.9,2.35,-6.7);scene.add(spawnSign);
-  mapLandmarks.push({title:'Spawn — Rua Eurilemos, 530',x:playerPos.x,z:playerPos.z});
-  // Estacionamento frontal/lateral, com acesso voltado para a via.
-  townPaving(-14.7,-23.0,17,10,0x7b8586,.063);
-  for(let x=-21;x<=-9;x+=3)townLine(x,-23,.1,5.6,0xf1efe5);
-  townPaving(-7.8,-22.9,3.5,5.0,0xa7aaa5,.078);
-  const parkingSign=labelSprite('ESTACIONAMENTO GMA','#ffffff','#164264',3.65,.45);
-  parkingSign.position.set(-12,2.7,-27.3);scene.add(parkingSign);
-  mapLandmarks.push({title:'Estacionamento GM',x:-15,z:-23});
-  cityBlock(-28,-5.6,10.4,11.5,6.8,0x8aafc3,'SECRETARIA DE EDUCAÇÃO','south');
-  cityBlock(-19.5,13.4,14.2,9.6,5.4,0xdadfe5,'CORREIOS','east');
-  cityBlock(-29.7,-20.9,10.2,8.3,5.2,0xd8d0c3,'RECEITA ESTADUAL','south');
-  cityBlock(-30.5,5.0,9.2,7.4,3.6,0xe9cbb1,"DONALD'S LANCHES",'west');
-  // Área de carga/descarga dos Correios: apenas ambientação, sem acesso funcional.
-  townPaving(-30.2,14,4.6,7.0,0x9c9b92,.065);
-  townLine(-30.2,14,.15,5.9,0xe8d5a5);
-  const truckSign=labelSprite('SERVIÇO • CORREIOS','#fefefe','#39556b',3.3,.42);
-  truckSign.position.set(-30,2.3,19.8);scene.add(truckSign);
-  mapLandmarks.push({title:'Fundos dos Correios',x:-30,z:14});
-  // Algumas fachadas genéricas adicionais. Sem marcas nem ocupantes inventados.
-  cityBlock(-21.0,41.4,13,8.0,5.7,0xdbd3c0,'COMÉRCIO','south');
-  cityBlock(13.5,41.5,10.0,8.0,5.5,0xb8a8a0,'COMÉRCIO','south');
-  cityBlock(27.0,-41.4,13.5,7.4,4.3,0xbec5b4,'SERVIÇOS','north');
-  cityBlock(-20.0,-42.0,15,7.4,4.4,0xcfc6b9,'COMÉRCIO','north');
-  // Iluminação estática simples para poupar chamadas de desenho no Android.
-  for(const [x,z] of [[-5.1,18],[-5.1,-19],[5.1,22],[34,16],[34,-18],[-34,20],[-34,-19]])simpleLight(x,z);
-  // Distribuição de cidadãos na mesma missão original de 3 conversas.
-  makeCitizen('Dona Maria',-5.15,7.5,0x52a47d,'maria');
-  makeCitizen('Sr. Carlos',7.0,-11.5,0xe1ad6d,'carlos');
-  makeCitizen('Ana',-5.25,20,0x7b94cc,'ana');
-}
 
+  // Perímetro orientado com o satélite. Escalas dos trechos AINDA aproximadas.
+  for(const st of MAPA_RUAS){
+    if(st.eixo==='z')road(st.pos,0,st.largura,120);
+    else road(0,st.pos,120,st.largura);
+  }
+  // Calçadas interrompidas nos cruzamentos: não cobrir o asfalto da via transversal.
+  const roadZ=[-42,-2.5,42],roadX=[-43,43];
+  const segZ=[[-57,-47],[-36,-8],[3,36],[47,57]];
+  const segX=[[-57,-49],[-37,37],[49,57]];
+  for(const st of MAPA_RUAS){
+    const offset=st.largura/2+1.35;
+    for(const side of [-1,1]){
+      if(st.eixo==='z'){
+        for(const [a,b] of segZ)townPaving(st.pos+side*offset,(a+b)/2,2.4,b-a,0xd2c9ba,.066);
+      }else{
+        for(const [a,b] of segX)townPaving((a+b)/2,st.pos+side*offset,b-a,2.4,0xd2c9ba,.066);
+      }
+    }
+    for(let d=-53;d<=53;d+=8.0){
+      if(st.eixo==='z')townLine(st.pos,d,.10,2.85,0xe8d7a2);
+      else townLine(d,st.pos,2.85,.10,0xe8d7a2);
+    }
+  }
+  // Faixas nas travessias de entrada da praça e proximidade da Central.
+  for(const x of [-28,-11,8,26])paveCrosswalk(x,-2.5,true);
+  for(const x of [-14,19])paveCrosswalk(x,42,true);
+  paveCrosswalk(-43,18,false);paveCrosswalk(43,-15,false);
+
+  // Praça é a área de convivência ao SUL da Rua Eurilemos, junto à igreja.
+  townPaving(0,21.0,74.8,31.5,0xd9d1bc,.077);
+  townPath(-3,20,4.0,30.0);
+  townPath(6,21.7,57.0,3.8);
+  townPath(8.0,31.7,44.0,2.0);
+  // Canteiros, caminho e árvores deixam o centro transitável.
+  for(const [x,z] of [[-5,9],[-4,32],[7,10],[28,9],[32,24],[-10,33],[-34,8],[11,36]]){
+    const soil=box(2.65,.07,2.65,0x7e9f69,x,.12,z);soil.receiveShadow=true;tree(x,z);
+  }
+  for(const [x,z,a] of [[5,13,0],[10,26,Math.PI/2],[-7,26,0],[30,30,Math.PI],[25,16,Math.PI/2]])townBench(x,z,a);
+  buildChurch();buildGazebo();makeKiosk(25,11);
+  const plazaSign=labelSprite('PRAÇA DA MATRIZ','#ffffff','#39634d',4.2,.55);
+  plazaSign.position.set(0,2.7,9.3);scene.add(plazaSign);
+  mapLandmarks.push({title:'Praça da Matriz',x:0,z:21});
+
+  // BLOCO INSTITUCIONAL AO NORTE DA EURILEMOS.
+  // Central à margem da rua. Jogador nasce na calçada em frente ao acesso.
+  const central=cityBlock(-12,-18,15,12,5.3,0xb5c2c3,'CENTRAL DA GUARDA','south');
+  const band=new THREE.Mesh(new THREE.BoxGeometry(14.6,.64,.10),standard(0x284e77));
+  band.position.set(0,4.35,6.09);central.add(band);
+  const entrance=new THREE.Mesh(new THREE.BoxGeometry(2.3,2.7,.11),standard(0x2f5767,.30));
+  entrance.position.set(0,1.35,6.08);central.add(entrance);
+  const gmSign=labelSprite('GUARDA MUNICIPAL','#ffffff','#18416a',3.9,.46);
+  gmSign.position.set(-12,3.1,-11.0);scene.add(gmSign);
+  const startRing=new THREE.Mesh(new THREE.RingGeometry(.5,.68,24),new THREE.MeshBasicMaterial({color:0x62dfb0,side:THREE.DoubleSide}));
+  startRing.rotation.x=-Math.PI/2;startRing.position.set(playerPos.x,.094,playerPos.z);scene.add(startRing);
+  const startSign=labelSprite('INÍCIO DO PLANTÃO','#ffffff','#12644f',3.5,.48);
+  startSign.position.set(playerPos.x,2.4,playerPos.z);scene.add(startSign);
+  mapLandmarks.push({title:'Spawn — Central R. Eurilemos, 530',x:playerPos.x,z:playerPos.z});
+  makeParkingBay(7,-13.5,14.2,9.8,'ESTACIONAMENTO GMA');
+  townPaving(6,-8.2,4,4,0xb1ad9f,.085);
+  mapLandmarks.push({title:'Entrada do estacionamento da Guarda',x:6,z:-8.2});
+
+  // Fachadas aproximadas, agrupadas por posição relativa mostrada pelo usuário.
+  cityBlock(-29,-24,14,12,5.5,0xd6d0c6,'RECEITA ESTADUAL','north');
+  cityBlock(-14,-33,9.8,6.7,3.6,0xe3c5a5,"DONALD'S LANCHES",'north');
+  cityBlock(8,-29,14.5,11,6.5,0x83a8c4,'SEC. EDUCAÇÃO','south');
+  cityBlock(27,-28.5,15,12,6.0,0xdadfe4,'CORREIOS','east');
+
+  // Fundos dos Correios e da Secretaria: área de carga/descarga ilustrativa.
+  townPaving(26,-13.4,16.4,9.1,0x92928a,.069);
+  for(const x of [20,23.5,27])townLine(x,-13.3,.11,7.2,0xe5d6ad);
+  const yardSign=labelSprite('ACESSO SERVIÇO • CORREIOS','#fff','#3c5364',4.0,.43);
+  yardSign.position.set(26,2.5,-9.0);scene.add(yardSign);
+  mapLandmarks.push({title:'Fundos Correios / Educação',x:26,z:-13});
+  townPaving(34.9,-13.5,3.3,5.8,0xb1ada4,.084);
+
+  // Entorno: massas neutras além do perímetro imediato, sem inventar fachadas.
+  cityBlock(-22,-51.5,14.0,7.4,4.8,0xc8c0b5,'COMÉRCIO','south');
+  cityBlock(21,-51.5,13.0,7.4,5.1,0xbccac4,'SERVIÇOS','south');
+  cityBlock(-22,51.6,14.0,7.0,4.8,0xc8c0b5,'COMÉRCIO','north');
+  cityBlock(23,51.5,13.0,7.0,4.7,0xc5c8c2,'COMÉRCIO','north');
+
+  for(const [x,z] of [[-36,-25],[-36,18],[36,-20],[36,18],[-24,-7],[18,-7],[8,33]])simpleLight(x,z);
+  makeCitizen('Dona Maria',-3.0,-7.9,0x52a47d,'maria');
+  makeCitizen('Sr. Carlos',0.0,15.0,0xe1ad6d,'carlos');
+  makeCitizen('Ana',13.2,20.0,0x7b94cc,'ana');
+}
 function buildScene(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x91c8e1);scene.fog=new THREE.Fog(0x91c8e1,34,92);
   camera=new THREE.PerspectiveCamera(64,1,.1,180);
@@ -1921,31 +1966,39 @@ function update(dt){
 }
 function drawMap(){
   const c=miniCtx,w=mini.width,h=mini.height;
-  c.clearRect(0,0,w,h);c.fillStyle='#8ca483';c.fillRect(0,0,w,h);
-  const s=2.2,px=player.position.x,pz=player.position.z;
-  const mx=x=>w/2+(x-px)*s, my=z=>h/2-(z-pz)*s;
-  // Desenha a mesma malha ESQUEMÁTICA usada no cenário, sem GPS real.
+  c.clearRect(0,0,w,h);c.fillStyle='#91a17f';c.fillRect(0,0,w,h);
+  const scale=1.54, px=player.position.x, pz=player.position.z;
+  const mx=x=>w/2+(x-px)*scale, my=z=>h/2+(z-pz)*scale;
+  // Orientação: Av. Arapongas à esquerda e Rua Falcão na parte superior.
   for(const st of MAPA_RUAS){
-    c.fillStyle='#45525c';
-    if(st.eixo==='z')c.fillRect(mx(st.pos-st.largura/2),0,st.largura*s,h);
-    else c.fillRect(0,my(st.pos+st.largura/2),w,st.largura*s);
-    c.strokeStyle='#e6d5a3';c.lineWidth=1;c.setLineDash([4,6]);c.beginPath();
+    c.fillStyle='#3e4d55';
+    if(st.eixo==='z')c.fillRect(mx(st.pos-st.largura/2),0,st.largura*scale,h);
+    else c.fillRect(0,my(st.pos-st.largura/2),w,st.largura*scale);
+    c.strokeStyle='#d7cca9';c.lineWidth=1;c.setLineDash([3,7]);c.beginPath();
     if(st.eixo==='z'){c.moveTo(mx(st.pos),0);c.lineTo(mx(st.pos),h);}
     else{c.moveTo(0,my(st.pos));c.lineTo(w,my(st.pos));}
     c.stroke();c.setLineDash([]);
   }
-  c.fillStyle='#c5b68d';c.fillRect(mx(6.2),my(20.5),29.0*s,41.5*s);
-  for(const p of mapLandmarks){
-    const x=mx(p.x),y=my(p.z);if(x<0||y<0||x>w||y>h)continue;
-    c.beginPath();c.arc(x,y,3.6,0,Math.PI*2);
-    c.fillStyle=p.title.includes('Guarda')||p.title.includes('Spawn')?'#4cffb9':'#ffe498';c.fill();
+  c.fillStyle='#d7c5a9';
+  c.fillRect(mx(-37.4),my(5.3),74.8*scale,31.5*scale);
+  c.fillStyle='#d0d2c6';
+  for(const b of [
+    [-12,-18,15,12],[-29,-24,14,12],[-14,-33,9.8,6.7],
+    [8,-29,14.5,11],[27,-28.5,15,12],[-25.5,20,13.2,15.5]
+  ])c.fillRect(mx(b[0]-b[2]/2),my(b[1]-b[3]/2),b[2]*scale,b[3]*scale);
+  for(const lm of mapLandmarks){
+    const x=mx(lm.x),y=my(lm.z);if(x<0||y<0||x>w||y>h)continue;
+    c.beginPath();c.arc(x,y,lm.title.includes('Spawn')?5:3,0,Math.PI*2);
+    c.fillStyle=lm.title.includes('Spawn')?'#4cffb9':'#ffde83';c.fill();
   }
-  for(const n of citizenNodes){const x=mx(n.citizen.position.x),y=my(n.citizen.position.z);
+  for(const n of citizenNodes){
+    const x=mx(n.citizen.position.x),y=my(n.citizen.position.z);
     if(x<-5||x>w+5||y<-5||y>h+5)continue;
-    c.beginPath();c.arc(x,y,4.5,0,Math.PI*2);c.fillStyle=talked.has(n.id)?'#70dba1':'#f7d652';c.fill();
+    c.beginPath();c.arc(x,y,4.2,0,Math.PI*2);c.fillStyle=talked.has(n.id)?'#70dba1':'#f7d652';c.fill();
   }
-  c.save();c.translate(w/2,h/2);c.rotate(-player.rotation.y);c.fillStyle='#fff';
-  c.strokeStyle='#163349';c.lineWidth=2;c.beginPath();c.moveTo(0,-9);c.lineTo(-6,7);c.lineTo(6,7);c.closePath();c.fill();c.stroke();c.restore();
+  c.save();c.translate(w/2,h/2);c.rotate(Math.PI-player.rotation.y);
+  c.fillStyle='#fff';c.strokeStyle='#163349';c.lineWidth=2;
+  c.beginPath();c.moveTo(0,-9);c.lineTo(-6,7);c.lineTo(6,7);c.closePath();c.fill();c.stroke();c.restore();
 }
 function loop(){
   requestAnimationFrame(loop);

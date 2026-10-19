@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Protótipo 0.9.0</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=090" />
+  <title>Tio Urso: Patrulha | Protótipo 0.9.1</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=091" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <link rel="stylesheet" href="./style.css?v=090" />
+  <link rel="stylesheet" href="./style.css?v=091" />
   <script type="importmap">
     {
       "imports": {
@@ -31,14 +31,14 @@ body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
     <div id="view"></div>
 
     <header id="top-ui">
-      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.9.0 • ARAPONGAS - CENTRO</small></div></div>
+      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.9.1 • ARAPONGAS - CENTRO</small></div></div>
       <div class="score"><span id="level">NÍVEL 1</span><div class="xpbar"><span id="xp-fill"></span></div><span id="xp-label">0 XP</span></div>
       <button id="audio-button" type="button" style="pointer-events:auto;background:#0c1e32b8;border:1px solid #ffffff44;border-radius:10px;padding:4px 8px;font-size:19px" aria-label="Configurações de áudio" title="Sons do jogo">🔊</button>
       <button id="full" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button>
     </header>
 
     <div id="mission"><div class="mission-tag">📻 MISSÃO 01</div><strong>Patrulha a pé · Rua Eurilemos, 530</strong><small>Converse com 3 cidadãos no entorno da Matriz</small><div class="mission-progress"><span id="mission-count">0/3</span><span id="mission-status">Em andamento</span></div></div>
-    <div class="map-wrap"><canvas id="minimap" width="180" height="180" aria-label="Minimapa da área de teste"></canvas><small>CENTRO • MAPA PROVISÓRIO</small></div>
+    <div class="map-wrap"><canvas id="minimap" width="180" height="180" aria-label="Minimapa da área de teste"></canvas><small>CENTRO • MAPA ESQUEMÁTICO</small></div>
     <!-- Retícula 2D fixa sobre a cena. Na mira, a câmera se desloca para o ombro
          e olha para a frente, mantendo o centro livre do corpo do personagem. -->
     <div id="aim-crosshair" hidden aria-label="Cruz de mira visual" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;text-align:center;filter:drop-shadow(0 1px 3px #000)">
@@ -86,13 +86,13 @@ body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
         <div class="intro-divider"></div>
         <small id="load-info">Preparando a Região Central de Arapongas...</small>
         <button id="start" type="button" disabled>CARREGANDO...</button>
-        <p class="micro">Joystick: leve = andar, até o topo = correr • Arraste na rua para olhar em todas as direções<br/>Caminhada, corrida e equipamentos preservados • Primeira área de Arapongas<br/>Traçado e volumes provisórios, aguardando referência aérea para alinhamento preciso.</p>
+        <p class="micro">Joystick: leve = andar, até o topo = correr • Arraste na rua para olhar em todas as direções<br/>Caminhada, corrida e equipamentos preservados • Primeira área de Arapongas<br/>Mapa reorganizado com foto aérea de referência; medidas e fachadas ainda são aproximadas.</p>
       </div>
     </div>
 
     <div id="rotate-hint"><div><span>📱 ↻</span><b>Gire o celular para horizontal</b><p>Este jogo foi preparado para o modo paisagem.</p><button id="ignore-rotate">Continuar assim mesmo</button></div></div>
     <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
   </main>
-  <script type="module" src="./app.js?v=090"></script>
+  <script type="module" src="./app.js?v=091"></script>
 </body>
 </html>
