@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.8.0: Mira estável: ombro em eixo LOCAL sem coordenadas mundiais,
+// apenas pistolaMira ajustável; seis calibrações confirmadas bloqueadas.
 // v0.7.9: pistola GLB texturizada no coldre e mão, estados descanso/mira,
 // ajuste independente dos três encaixes e retícula de câmera no teste.
 // O tiro continua bloqueado na progressão regular; teste visual via ?ajuste=1.
@@ -410,32 +412,39 @@ const HAND_TONFA_ATTACK = Object.freeze({x:-.15, y:.075, z:-.008, rx:0, ry:5, rz
 const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v076';
 const ACCESSORY_NAMES = ['tonfa','coldre','maoDescanso','maoAtaque'];
 // Separado do armazenamento das quatro calibrações anteriores.
-const PISTOL_ADJUST_KEY='tio-urso-pistola-v079';
+const PISTOL_ADJUST_KEY='tio-urso-mira-v080';
 const PISTOL_NAMES=['pistolaNoColdre','pistolaDescanso','pistolaMira'];
+// Os DOIS ajustes de pistola já aprovados pelo jogador não podem ser
+// alterados no painel. A mira NÃO reutiliza o valor antigo (bug helicóptero).
+const PISTOL_REST_HOLSTER = Object.freeze({x:-0.025,y:-0.001,z:0,rx:0,ry:-180,rz:85});
+const PISTOL_REST_HAND = Object.freeze({x:-0.037,y:0.195,z:-0.049,rx:-35,ry:-120,rz:-105});
+// Inicia a mira com a orientação da empunhadura aprovada: sem girar 3 eixos
+// simultaneamente para uma calibração inválida. O jogador ajustará só a mira.
 const pistolDefaults={
-  pistolaNoColdre:{x:0,y:.024,z:0,rx:0,ry:0,rz:0},
-  pistolaDescanso:{x:-.012,y:-.055,z:.026,rx:0,ry:0,rz:0},
-  pistolaMira:{x:-.012,y:-.045,z:.025,rx:0,ry:0,rz:0}
+  pistolaNoColdre:PISTOL_REST_HOLSTER,
+  pistolaDescanso:PISTOL_REST_HAND,
+  pistolaMira:PISTOL_REST_HAND
 };
 let pistolAdjustments={};
 function loadPistolAdjustments(){
-  let raw={};
-  try{raw=JSON.parse(localStorage.getItem(PISTOL_ADJUST_KEY)||'{}')||{};}catch(e){}
-  for(const name of PISTOL_NAMES){
-    const saved=raw[name]||{}, def=pistolDefaults[name];
-    pistolAdjustments[name]={};
-    for(const axis of AXES_POSITION){
-      pistolAdjustments[name][axis]=Number.isFinite(saved[axis])
-        ? THREE.MathUtils.clamp(saved[axis],-1.5,2):def[axis];
-    }
-    for(const axis of AXES_ROTATION){
-      pistolAdjustments[name][axis]=Number.isFinite(saved[axis])
-        ? normalizeAngleDegrees(saved[axis]):def[axis];
-    }
+  pistolAdjustments.pistolaNoColdre={...PISTOL_REST_HOLSTER};
+  pistolAdjustments.pistolaDescanso={...PISTOL_REST_HAND};
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem(PISTOL_ADJUST_KEY)||'{}')||{};}catch(e){}
+  const raw=saved.pistolaMira||{}, def=pistolDefaults.pistolaMira;
+  pistolAdjustments.pistolaMira={};
+  for(const axis of AXES_POSITION){
+    pistolAdjustments.pistolaMira[axis]=Number.isFinite(raw[axis])
+      ? THREE.MathUtils.clamp(raw[axis],-1.5,2):def[axis];
+  }
+  for(const axis of AXES_ROTATION){
+    pistolAdjustments.pistolaMira[axis]=Number.isFinite(raw[axis])
+      ? normalizeAngleDegrees(raw[axis]):def[axis];
   }
 }
 function savePistolAdjustments(){
-  try{localStorage.setItem(PISTOL_ADJUST_KEY,JSON.stringify(pistolAdjustments));}catch(e){}
+  // Nunca sobrescrever os dois estados fixos no armazenamento.
+  try{localStorage.setItem(PISTOL_ADJUST_KEY,JSON.stringify({pistolaMira:pistolAdjustments.pistolaMira}));}catch(e){}
 }
 function calibValue(name){return PISTOL_NAMES.includes(name)?pistolAdjustments[name]:accessoryAdjustments[name];}
 function calibDefault(name){return PISTOL_NAMES.includes(name)?pistolDefaults[name]:accessoryDefaults[name];}
@@ -630,7 +639,7 @@ function loadDetailedBeltAssets(){
 function applyPistolPlacement(){
   if(!pistolModel || !pistolModel.parent)return;
   const inHand=pistolModel.parent===pistolHandSocket;
-  const base=inHand?pistolAdjustments.pistolaDescanso:pistolAdjustments.pistolaNoColdre;
+  const base=inHand?PISTOL_REST_HAND:PISTOL_REST_HOLSTER;
   const aim=pistolAdjustments.pistolaMira;
   const t=inHand?THREE.MathUtils.clamp(aimBlend,0,1):0;
   pistolModel.position.set(
@@ -638,9 +647,13 @@ function applyPistolPlacement(){
     THREE.MathUtils.lerp(base.y,aim.y,t),
     THREE.MathUtils.lerp(base.z,aim.z,t)
   );
-  const getAngle=(axis)=>THREE.MathUtils.degToRad(
-    base[axis]+normalizeAngleDegrees(aim[axis]-base[axis])*t);
-  pistolModel.rotation.set(getAngle('rx'),getAngle('ry'),getAngle('rz'),'XYZ');
+  // Em vez de somar giros Euler (que podiam produzir voltas estranhas),
+  // combina as duas orientações como quaternions pelo caminho curto.
+  const q0=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+    THREE.MathUtils.degToRad(base.rx),THREE.MathUtils.degToRad(base.ry),THREE.MathUtils.degToRad(base.rz),'XYZ'));
+  const q1=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+    THREE.MathUtils.degToRad(aim.rx),THREE.MathUtils.degToRad(aim.ry),THREE.MathUtils.degToRad(aim.rz),'XYZ'));
+  pistolModel.quaternion.copy(q0).slerp(q1,t);
 }
 function refreshPistolState(){
   if(!pistolModel || !pistolHandSocket || !pistolHolsterSocket)return;
@@ -690,46 +703,32 @@ function updateAimReticle(dt){
   camera.updateMatrixWorld();
   aimRaycaster.setFromCamera(new THREE.Vector2(0,0),camera);
   const hits=aimRaycaster.intersectObjects(aimColliders,false);
-  const label=el('aim-target-label');
   if(hits.length){
     aimTargetPoint.copy(hits[0].point);
-    if(label)label.textContent=`ALVO VISUAL • ${hits[0].distance.toFixed(0)} m`;
-  }else if(label){label.textContent='MIRA LIVRE';}
+    // Retícula sem legenda, conforme solicitado; somente marcador central.
+  } // Nenhum texto abaixo da retícula.
 }
 
 // Ajuste fino opcional pelo telefone: abra ?ajuste=1.
 // Permite corrigir poucos centímetros sem remontar ou reenviar o jogo.
 function enableAccessoryCalibration(){
-  if(!new URLSearchParams(location.search).has('ajuste'))return;
+  if(!FIREARM_TEST_MODE)return;
   const panel=document.createElement('aside');
   panel.id='accessory-calibration';
-  panel.setAttribute('aria-label','Ajuste fino dos equipamentos 3D');
-  panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(254px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
+  panel.setAttribute('aria-label','Ajuste fino exclusivo de mira da pistola');
+  panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(256px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-      <b>AJUSTE FINO 0.7.9</b>
+      <b>AJUSTE DA MIRA · 0.8.0</b>
       <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
     </div>
     <div id="cal-body">
-      <label style="display:block;margin-top:7px">Equipamento/estado
-        <select id="cal-item" style="display:block;width:100%;margin:4px 0 8px;padding:5px;color:#111;background:#fff;border-radius:5px">
-          <option value="tonfa">Tonfa • guardada no cinto</option>
-          <option value="coldre">Coldre • lado direito</option>
-          <option value="maoDescanso">Tonfa • mão em descanso</option>
-          <option value="maoAtaque">Tonfa • mão em ataque</option>
-          <option value="pistolaNoColdre">Pistola • guardada no coldre</option>
-          <option value="pistolaDescanso">Pistola • mão em descanso</option>
-          <option value="pistolaMira">Pistola • mão em mira</option>
-        </select>
-      </label>
-      <div id="cal-readout" aria-live="polite" style="font-size:11px;line-height:1.6;margin:6px 0"></div>
-      <div id="cal-preview-wrap" hidden>
-        <button id="cal-preview" type="button" class="cal-secondary">Congelar pose de ataque</button>
-        <small style="display:block;opacity:.85;margin:4px 0">Congele a animação para posicionar a tonfa durante um golpe; toque novamente para liberar.</small>
-      </div>
+      <div style="margin:8px 0;color:#cbe5ef">Somente <b>Pistola • Mira</b> pode ser modificada. Todos os outros encaixes estão preservados.</div>
+      <button id="cal-preview" type="button" class="cal-secondary">🎯 Preparar mira estável</button>
+      <div id="cal-readout" aria-live="polite" style="font-size:11px;line-height:1.6;margin:8px 0"></div>
       <details open><summary style="font-weight:700;padding:5px 0;cursor:pointer">↔ POSIÇÃO XYZ</summary>
         <div id="cal-pos-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
-        <button id="cal-reset-pos" type="button" class="cal-secondary">Restaurar posição</button>
+        <button id="cal-reset-pos" type="button" class="cal-secondary">Restaurar só posição da mira</button>
       </details>
       <details open><summary style="font-weight:700;padding:6px 0;cursor:pointer">↻ ROTAÇÃO XYZ</summary>
         <label style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin:5px 0">Passo do giro
@@ -738,66 +737,42 @@ function enableAccessoryCalibration(){
           </select>
         </label>
         <div id="cal-rot-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
-        <button id="cal-rotate-back" type="button" class="cal-secondary">Girar Y +180°</button>
-        <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar rotação</button>
+        <button id="cal-rotate-back" type="button" class="cal-secondary">Girar mira Y +180°</button>
+        <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar só rotação da mira</button>
       </details>
-      <button id="cal-copy" type="button" class="cal-secondary">Copiar os 7 ajustes</button>
-      <small style="display:block;margin-top:5px;opacity:.85">Todos os valores são salvos no navegador. O estado ataque não altera a posição guardada.</small>
+      <button id="cal-copy" type="button" class="cal-secondary">Copiar ajuste da pistola em mira</button>
+      <small style="display:block;margin-top:5px;opacity:.85">Apenas a mira é salva. As seis calibrações aprovadas permanecem intactas.</small>
       <small id="cal-message" role="status" style="display:block;min-height:12px;margin-top:4px;color:#ffe19b"></small>
     </div>`;
   document.body.append(panel);
   for(const btn of panel.querySelectorAll('.cal-secondary')){
     btn.style.cssText='display:block;width:100%;margin-top:6px;padding:6px 3px;border-radius:5px;background:#384e62;color:white;border:1px solid #8195a2;font-size:11px;';
   }
-  const choice=panel.querySelector('#cal-item');
   const readout=panel.querySelector('#cal-readout');
   const message=panel.querySelector('#cal-message');
-  const previewButton=panel.querySelector('#cal-preview');
-  const isHand=()=>['maoDescanso','maoAtaque'].includes(choice.value);
-  const isPistol=()=>PISTOL_NAMES.includes(choice.value);
-  const isPistolHand=()=>['pistolaDescanso','pistolaMira'].includes(choice.value);
   const show=()=>{
-    const p=calibValue(choice.value);
-    readout.innerHTML=`<span>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}</span><br><span>Giro: X ${p.rx.toFixed(2)}° · Y ${p.ry.toFixed(2)}° · Z ${p.rz.toFixed(2)}°</span>`;
-    panel.querySelector('#cal-preview-wrap').hidden=choice.value!=='maoAtaque';
-    previewButton.textContent=comboPreviewLocked?'Soltar pose de ataque':'Congelar pose de ataque';
+    const p=pistolAdjustments.pistolaMira;
+    readout.innerHTML=`<b>PISTOLA • MIRA</b><br>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}<br>Giro: X ${p.rx.toFixed(2)}° · Y ${p.ry.toFixed(2)}° · Z ${p.rz.toFixed(2)}°`;
   };
-  const endPreview=()=>{
-    if(!comboPreviewLocked)return;
-    comboPreviewLocked=false;
-    if(comboAnim){comboAnim.paused=false;comboAnim.stop();}
-    comboActive=false;
-    // The ordinary animation blend will restore rest pose smoothly.
-  };
-  const beginPreview=()=>{
-    if(!started){message.textContent='Inicie o jogo antes de congelar a pose.';return;}
-    if(!comboAnim){message.textContent='O GLB não contém a animação de ataque.';return;}
-    if(equipped!=='tonfa')selectEquipment('tonfa');
-    if(equipped!=='tonfa')return;
-    comboAnim.paused=false;
-    comboAnim.reset();comboAnim.setLoop(THREE.LoopOnce,1);
-    comboAnim.setEffectiveTimeScale(1);comboAnim.play();
-    comboAnim.time=Math.min(1.2,comboAnim.getClip().duration*.45);
-    comboAnim.paused=true;
-    comboPreviewLocked=true;comboActive=true;
-    message.textContent='Pose congelada: ajuste XYZ e visualize no modelo.';
-    show();
-  };
-  previewButton.addEventListener('click',()=>comboPreviewLocked?endPreview() : beginPreview());
+  panel.querySelector('#cal-preview').addEventListener('click',()=>{
+    if(!started){message.textContent='Primeiro toque em INICIAR PATRULHAMENTO.';return;}
+    if(!pistolAssetLoaded){message.textContent='Aguarde carregar o GLB da pistola.';return;}
+    if(equipped!=='arma')selectEquipment('arma');
+    if(equipped!=='arma'){message.textContent='Não foi possível equipar a pistola.';return;}
+    setAiming(true);
+    message.textContent='Mira ativada. Ajuste XYZ com a câmera em terceira pessoa.';
+  });
   const change=(axis,delta)=>{
-    const p=calibValue(choice.value);
-    const next=p[axis]+delta;
-    p[axis]=AXES_ROTATION.includes(axis) ? normalizeAngleDegrees(next)
-      : Math.round(THREE.MathUtils.clamp(next,-1.5,2)*1000)/1000;
-    applyAccessoryPlacement();saveCalibrations();show();
+    const p=pistolAdjustments.pistolaMira;
+    p[axis]=AXES_ROTATION.includes(axis)?normalizeAngleDegrees(p[axis]+delta)
+      :Math.round(THREE.MathUtils.clamp(p[axis]+delta,-1.5,2)*1000)/1000;
+    applyPistolPlacement();savePistolAdjustments();show();
   };
   const addButton=(parent,name,axis,dir,isRotation)=>{
     const btn=document.createElement('button');btn.type='button';btn.textContent=name;
     btn.style.cssText='min-height:33px;padding:5px 2px;color:#0d2133;background:#f5d47b;border-radius:5px;font:12px system-ui;';
-    btn.addEventListener('click',()=>{
-      const step=isRotation?Number(panel.querySelector('#cal-step').value):.025;
-      change(axis,step*dir);
-    });parent.append(btn);
+    btn.addEventListener('click',()=>change(axis,(isRotation?Number(panel.querySelector('#cal-step').value):.025)*dir));
+    parent.append(btn);
   };
   const pos=panel.querySelector('#cal-pos-buttons');
   for(const [name,axis] of [['Lado','x'],['Altura','y'],['Frente','z']]){
@@ -808,28 +783,17 @@ function enableAccessoryCalibration(){
     const name=axis.slice(1).toUpperCase();
     addButton(rot,`Giro ${name} −`,axis,-1,true);addButton(rot,`Giro ${name} +`,axis,1,true);
   }
-  choice.addEventListener('change',()=>{
-    endPreview();message.textContent='';
-    if(isHand() && started && talked.size>=3 && equipped!=='tonfa')selectEquipment('tonfa');
-    if(isPistolHand() && started && equipped!=='arma')selectEquipment('arma');
-    if(isPistol() && started){
-      if(choice.value==='pistolaNoColdre' && equipped==='arma')selectEquipment('punhos');
-      setAiming(choice.value==='pistolaMira');
-    }
-    show();
-  });
   panel.querySelector('#cal-rotate-back').addEventListener('click',()=>change('ry',180));
   const resetAxes=axes=>{
-    const key=choice.value;
-    for(const axis of axes)calibValue(key)[axis]=calibDefault(key)[axis];
-    applyAccessoryPlacement();saveCalibrations();show();
-    message.textContent='Restaurado apenas o estado selecionado.';
+    for(const axis of axes)pistolAdjustments.pistolaMira[axis]=pistolDefaults.pistolaMira[axis];
+    applyPistolPlacement();savePistolAdjustments();show();
+    message.textContent='Restaurado apenas o ajuste da mira.';
   };
   panel.querySelector('#cal-reset-pos').addEventListener('click',()=>resetAxes(AXES_POSITION));
   panel.querySelector('#cal-reset-rot').addEventListener('click',()=>resetAxes(AXES_ROTATION));
   panel.querySelector('#cal-copy').addEventListener('click',async()=>{
-    const result=JSON.stringify({...accessoryAdjustments,...pistolAdjustments},null,2);
-    try{await navigator.clipboard.writeText(result);message.textContent='Sete ajustes copiados!';}
+    const result=JSON.stringify({pistolaMira:pistolAdjustments.pistolaMira},null,2);
+    try{await navigator.clipboard.writeText(result);message.textContent='Ajuste da mira copiado!';}
     catch(e){message.textContent='Cópia indisponível neste navegador.';}
   });
   panel.querySelector('#cal-collapse').addEventListener('click',()=>{
@@ -1062,7 +1026,7 @@ function update(dt){
     pressedKeys.has('KeyS') || pressedKeys.has('ArrowDown');
   const joystickPressure = Math.min(1, Math.hypot(joyX, joyY));
   const analogScale = keyboardMoving ? 1 : THREE.MathUtils.clamp((joystickPressure - 0.10) / 0.65, 0, 1);
-  const trying=motion.lengthSq()>.008 && analogScale>.045 && !comboActive && comboBlend<.25;
+  const trying=motion.lengthSq()>.008 && analogScale>.045 && !comboActive && comboBlend<.25 && !(FIREARM_TEST_MODE && aiming);
   const running=(autoRunByStick||runHeld||pressedKeys.has('ShiftLeft')||pressedKeys.has('ShiftRight'))&&trying;
   const desired=new THREE.Vector3();
   if(trying){
@@ -1105,14 +1069,13 @@ function update(dt){
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
     aimBlend+=(Number(aiming&&equipped==='arma')-aimBlend)*(1-Math.exp(-dt*11));
-    // Pose de mira provisória: rotação ADITIVA DO OMBRO após mixer.update().
-    // Não altera dedos/punho, não acumula deformação entre quadros.
+    // Mira estabilizada: animações originais redefinem o osso a cada frame;
+    // o ajuste é aplicado uma única vez no espaço LOCAL do RightArm.
+    // Não consultar quaternions mundiais nem multiplicar a rotação do jogador.
     if(rightUpperArm && aimBlend>.001){
-      const parentWorld=rightUpperArm.parent.getWorldQuaternion(new THREE.Quaternion());
-      const playerWorld=player.getWorldQuaternion(new THREE.Quaternion());
-      const localX=new THREE.Vector3(1,0,0).applyQuaternion(playerWorld).applyQuaternion(parentWorld.invert());
-      const change=new THREE.Quaternion().setFromAxisAngle(localX,-.83*aimBlend);
-      rightUpperArm.quaternion.premultiply(change).normalize();
+      const stableRaise=new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(1,0,0), 0.92*aimBlend);
+      rightUpperArm.quaternion.multiply(stableRaise).normalize();
     }
     applyPistolPlacement();
     // Blend only the accessory's relative socket transform, never the finger bones.

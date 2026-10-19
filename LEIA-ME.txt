@@ -1,27 +1,17 @@
-TIO URSO: PATRULHA — v0.7.9 (PISTOLA GLB + AJUSTE DE MIRA)
+TIO URSO: PATRULHA — v0.8.0 | MIRA ESTÁVEL
 
-ATENÇÃO: atualize a versão 0.7.8 ANTES desta, caso ainda não tenha publicado.
+Atualize no GitHub apenas index.html e app.js.
+Preserve style.css, tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb.
 
-1. Extraia o ZIP e envie index.html, app.js e pistola.glb à raiz do
-   repositório github.com/wesleyhulk-pixel/tio-urso-patrulha.
-2. Mantenha os GLBs existentes: tio-urso.glb, tonfa.glb e coldre.glb,
-   e o arquivo style.css. Não os apague nem os substitua.
-3. Confirme Commit changes e aguarde GitHub Pages.
-4. Jogo normal: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=079
-5. Teste/calibração: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=079
+MODO CALIBRAÇÃO:
+https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=080
+Inicie o jogo e toque "Preparar mira estável" no painel.
+Somente Pistola • Mira está editável, com posição e rotação XYZ.
+O modo de ajuste não dispara projéteis.
 
-No painel EQUIP., selecione PISTOLA (somente no modo de ajuste).
-No painel de calibração, escolha:
- - Pistola • guardada no coldre
- - Pistola • mão em descanso
- - Pistola • mão em mira
+PRESERVADO: os quatro ajustes de tonfa/coldre, a pistola no coldre e
+na mão em descanso. A mira começa numa posição de referência estável,
+sem importar a calibração antiga da mira que causava rotação.
+Ao final use "Copiar ajuste da pistola em mira" e envie o JSON no chat.
 
-Use POSIÇÃO e ROTAÇÃO XYZ; as configurações são salvas no navegador.
-Toque 🎯 MIRAR para visualizar cruz de mira; arraste a tela para apontar.
-O alvo é baseado no raio central da câmera contra a geometria do cenário.
-A arma NÃO dispara e não causa dano, pois a habilitação ainda não foi criada.
-Mantenha as calibrações de tonfa e coldre já feitas no navegador.
-
-Este ZIP possui uma pistola GLB com texturas otimizadas para 1K, 4,4 MB;
-o modelo 3D original do usuário foi preservado sem alterações.
-TESTES: verificar a orientação da arma na mão e no coldre no próprio Android.
+VALIDAÇÃO: revisão de código e sintaxe; testar visual no Android.
