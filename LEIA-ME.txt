@@ -1,18 +1,29 @@
-TIO URSO: PATRULHA v0.8.7 — PATA AJUSTÁVEL + PASSOS
+TIO URSO: PATRULHA v0.8.8 — AJUSTE FINO DA CRUZ + PASSOS REAIS
 
-Atualize index.html e app.js no GitHub. Opcional: este LEIA-ME.txt.
-NÃO remova: tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb, style.css, ambiente-rua.mp3, ambiente-pessoas.mp3, efeitos.mp3.
+ARQUIVOS PARA O GITHUB (4, todos na raiz):
+index.html, app.js, LEIA-ME.txt, passos-calcada.mp3
 
-Jogo normal: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=087
-Ajuste EXCLUSIVO da pata nas costas: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?pata=1&v=087
+Não exclua: tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb, style.css,
+ambiente-rua.mp3, ambiente-pessoas.mp3, efeitos.mp3.
 
-O painel permite modificar POSIÇÃO XYZ, ROTAÇÃO XYZ e TAMANHO do emblema, sem alterar nenhuma calibração de pistola/tonfa/coldre.
-Os valores são DESLOCAMENTOS relativos ao emblema atual e ficam gravados neste navegador.
-Depois de calibrar, clique em 'Copiar meus ajustes' e cole o JSON na conversa.
+SITE: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=088
+PAINEL DA CRUZ: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?cruz=1&v=088
 
-PASSOS: efeitos PROVISÓRIOS criados por Web Audio; caminhada e corrida com ritmo distinto.
-O som só é liberado depois de tocar em INICIAR PATRULHAMENTO.
-No painel 🔊 existe botão de teste de passos. Se estiver mudo, confira volume e silenciar.
-Os sons profissionais de passos podem substituir esses efeitos depois.
+No painel exclusivo da cruz: pressione INICIAR PATRULHAMENTO e depois
+'EQUIPAR PISTOLA E MIRAR'. Ajuste a posição da retícula com passos de
+2, 5, 10 ou 20 pixels: esquerda/direita/subir/descer. Se necessário,
+use RESTAURAR CRUZ NO CENTRO. Clique em 'COPIAR AJUSTE DA CRUZ'
+para enviar o JSON ao chat. Mudanças são salvas só neste navegador.
+O raycast visual acompanha o ponto da retícula, mas TIROS estão desabilitados.
 
-Base: v0.8.6 (personagem visível em todos ângulos, animações e calibrações preservadas).
+PATA APROVADA: {x:0,y:-0.08,z:0,rx:-10,ry:0,rz:0,escala:1}.
+Fixada como novo padrão sem alterar equipamento/rig/câmera.
+
+PASSOS: áudio real fornecido pelo usuário. O arquivo é um ruído de pisadas
+em pavimento (saltos/calçados), usado provisoriamente até escolher áudio
+mais próximo de botas. Comprime para celular; varia o ritmo ao andar/correr.
+Em caso de falha no MP3, mantém som gerado no jogo como alternativa.
+O áudio exige tocar em INICIAR PATRULHAMENTO e estar com volume ativo.
+
+ARMA: apenas TESTE VISUAL de mira. Nenhum disparo implementado.
+Tonfa/coldre/pistola/XP/animações: códigos preservados da v0.8.7.

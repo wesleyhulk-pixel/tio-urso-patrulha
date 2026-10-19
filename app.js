@@ -1,3 +1,6 @@
+// v0.8.8: calibração APENAS da cruz na tela; pata das costas aprovada
+// (Y -0.08, RX -10) fixada. Passos reais do Mixkit com sincronização dos clipes;
+// todas as calibrações da tonfa, coldre e pistola preservadas.
 // v0.8.7: ajuste fino exclusivo da pata das costas (posição XYZ, rotação XYZ, escala)
 // e pisadas provisórias sintetizadas pelo Web Audio ao caminhar/correr.
 // Calibrações existentes, GLBs e animações foram mantidos da v0.8.6.
@@ -49,7 +52,8 @@ const CHARACTER_FILE = './tio-urso.glb';
 const HOLSTER_FILE = './coldre.glb';
 const TONFA_BELT_FILE = './tonfa.glb';
 const PISTOL_FILE = './pistola.glb';
-const FIREARM_TEST_MODE = new URLSearchParams(location.search).has('ajuste');
+const RETICLE_ADJUST_MODE = new URLSearchParams(location.search).has('cruz');
+const FIREARM_TEST_MODE = new URLSearchParams(location.search).has('ajuste') || RETICLE_ADJUST_MODE;
 const PAW_ADJUST_MODE = new URLSearchParams(location.search).has('pata');
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
@@ -57,6 +61,88 @@ const RUN_SPEED = 5.4;
 const LIMIT = 48;
 
 const el = id => document.getElementById(id);
+// Retícula: ajuste VISUAL independente da posição/rotação da arma e da câmera.
+// Valores em pixels, relativos ao centro do visor em paisagem.
+const RETICLE_STORAGE_KEY='tio-urso-cruz-v088';
+const RETICLE_DEFAULTS=Object.freeze({x:0,y:0});
+let reticleAdjustments={...RETICLE_DEFAULTS};
+try {
+  const stored=JSON.parse(localStorage.getItem(RETICLE_STORAGE_KEY)||'null');
+  if(stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)){
+    reticleAdjustments.x=THREE.MathUtils.clamp(stored.x,-300,300);
+    reticleAdjustments.y=THREE.MathUtils.clamp(stored.y,-200,200);
+  }
+}catch(e){console.warn('Retícula salva inválida',e);}
+function saveReticleAdjustments(){
+  try{localStorage.setItem(RETICLE_STORAGE_KEY,JSON.stringify(reticleAdjustments));}catch(e){}
+}
+function applyReticleAdjustments(){
+  const cross=el('aim-crosshair'); if(!cross)return;
+  cross.style.left='calc(50% + '+reticleAdjustments.x+'px)';
+  cross.style.top='calc(50% + '+reticleAdjustments.y+'px)';
+}
+function enableReticleCalibration(){
+  if(!RETICLE_ADJUST_MODE)return;
+  const panel=document.createElement('aside');
+  panel.id='reticle-calibration';
+  panel.setAttribute('aria-label','Ajuste fino exclusivo da cruz de mira');
+  panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(290px,60vw);max-height:72vh;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:#071b2df2;border:1px solid #ffce63;color:white;border-radius:12px;padding:10px;box-shadow:0 6px 22px #0009;font:12px system-ui;';
+  panel.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.8.8</strong><button id="reticle-toggle" type="button">−</button></div>
+    <div id="reticle-body">
+      <p style="font-size:11px;line-height:1.45;color:#dfebfa;margin:8px 0">Movimente a CRUZ na tela. O braço e os equipamentos calibrados não serão alterados.</p>
+      <div id="reticle-values" style="padding:8px;background:#18354b;border-radius:7px;text-align:center;font-weight:700" aria-live="polite"></div>
+      <label style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 5px">Passo
+        <select id="reticle-step" style="padding:6px;border-radius:7px;background:#fff;color:#182937"><option value="2">2 px (fino)</option><option value="5" selected>5 px</option><option value="10">10 px</option><option value="20">20 px</option></select>
+      </label>
+      <div id="reticle-directions" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+      <button id="reticle-start" type="button">🎯 Equipar pistola e mirar</button>
+      <button id="reticle-reset" type="button">↺ Restaurar cruz no centro</button>
+      <button id="reticle-copy" type="button">📋 Copiar ajuste da cruz</button>
+      <textarea id="reticle-json" rows="5" readonly style="display:none;width:100%;box-sizing:border-box;margin-top:7px;background:#142e45;color:white;border:1px solid #a3cbd1;border-radius:6px;padding:6px;font-size:11px;"></textarea>
+      <small id="reticle-message" style="display:block;margin-top:8px;color:#ffe2a3">Ajustes salvos automaticamente no navegador.</small>
+    </div>`;
+  document.body.append(panel);
+  const style='color:#112639;background:#f3d579;border:0;border-radius:7px;padding:9px 5px;font-weight:700;min-height:37px;touch-action:manipulation;';
+  const msg=panel.querySelector('#reticle-message');
+  for(const btn of panel.querySelectorAll('button'))btn.style.cssText=style+'margin-top:5px;';
+  for(const id of ['reticle-start','reticle-reset','reticle-copy'])panel.querySelector('#'+id).style.width='100%';
+  const show=()=>{panel.querySelector('#reticle-values').textContent='Horizontal: '+reticleAdjustments.x+' px  |  Vertical: '+reticleAdjustments.y+' px';};
+  const move=(axis,dir)=>{
+    const step=Number(panel.querySelector('#reticle-step').value);
+    const limit=axis==='x'?Math.min(300,window.innerWidth*.43):Math.min(200,window.innerHeight*.43);
+    reticleAdjustments[axis]=THREE.MathUtils.clamp(reticleAdjustments[axis]+step*dir,-limit,limit);
+    reticleAdjustments[axis]=Math.round(reticleAdjustments[axis]);
+    applyReticleAdjustments();saveReticleAdjustments();show();
+    msg.textContent='Cruz posicionada. Confirme olhando a rua à frente.';
+  };
+  const grid=panel.querySelector('#reticle-directions');
+  for(const [label,axis,dir] of [['← Esquerda','x',-1],['Direita →','x',1],['↑ Subir','y',-1],['↓ Descer','y',1]]){
+    const b=document.createElement('button');b.type='button';b.style.cssText=style;b.textContent=label;
+    b.addEventListener('click',()=>move(axis,dir));grid.append(b);
+  }
+  panel.querySelector('#reticle-start').addEventListener('click',()=>{
+    if(!started){msg.textContent='Primeiro toque em INICIAR PATRULHAMENTO.';return;}
+    selectEquipment('arma');setAiming(true);
+    msg.textContent='Mira ativada. Ajuste a cruz pelos botões.';
+  });
+  panel.querySelector('#reticle-reset').addEventListener('click',()=>{
+    reticleAdjustments={...RETICLE_DEFAULTS};applyReticleAdjustments();saveReticleAdjustments();show();
+    msg.textContent='Cruz restaurada ao centro. Os equipamentos não foram alterados.';
+  });
+  panel.querySelector('#reticle-copy').addEventListener('click',async()=>{
+    const result=JSON.stringify({cruzMira:reticleAdjustments},null,2);
+    const txt=panel.querySelector('#reticle-json');txt.value=result;
+    try{await navigator.clipboard.writeText(result);msg.textContent='✅ Copiado! Envie este JSON na conversa.';txt.style.display='none';}
+    catch(e){txt.style.display='block';txt.focus();txt.select();msg.textContent='Copie os valores no campo abaixo.';}
+  });
+  panel.querySelector('#reticle-toggle').addEventListener('click',()=>{
+    const body=panel.querySelector('#reticle-body');body.hidden=!body.hidden;
+    panel.querySelector('#reticle-toggle').textContent=body.hidden?'+':'−';
+  });
+  applyReticleAdjustments();show();
+}
+
 
 // v0.8.5: biblioteca de áudio otimizada para Android, sem alterar rigging,
 // mira, posições aprovadas ou lógica de colisões/ataque.
@@ -77,8 +163,30 @@ let audioEnabled=true, audioVolume=.70, audioLoops=[], audioPreviewSource=null;
 // Passos provisórios: som criado no navegador sem depender de outro MP3.
 // O tempo do efeito é guiado pela fase de Walking/Running do AnimationMixer.
 let stepNoiseBuffer=null, stepLastMarker=null, stepLastAt=-100;
+let actualStepIndex=0;
+// Amostras de pisadas selecionadas no arquivo enviado (passos sobre calçada).
+const REAL_STEP_SLICES=[[.07,.31],[.68,.31],[1.27,.31],[1.86,.31],[4.12,.34],[4.71,.34]];
 function playFootstep(runningStep=false){
   if(!audioEnabled || !audioContext || !audioMaster || audioContext.state!=='running')return;
+  // Usa primeiro a gravação real. Mantém sintetizador como reserva (offline/erro).
+  if(soundBuffers.passos){
+    const now=audioContext.currentTime;
+    const [offset,duration]=REAL_STEP_SLICES[actualStepIndex++%REAL_STEP_SLICES.length];
+    const src=audioContext.createBufferSource();
+    src.buffer=soundBuffers.passos;
+    src.playbackRate.value=runningStep?1.1:.88;
+    const filter=audioContext.createBiquadFilter();filter.type='lowpass';
+    filter.frequency.value=runningStep?2300:1750;
+    const gain=audioContext.createGain();
+    const dur=duration/src.playbackRate.value;
+    gain.gain.setValueAtTime(.0001,now);
+    gain.gain.linearRampToValueAtTime(runningStep?.65:.50,now+.018);
+    gain.gain.setValueAtTime(runningStep?.65:.50,now+Math.max(.02,dur-.045));
+    gain.gain.linearRampToValueAtTime(.0001,now+dur);
+    src.connect(filter);filter.connect(gain);gain.connect(audioMaster);
+    src.start(now,offset,duration);
+    return;
+  }
   if(!stepNoiseBuffer){
     const sampleRate=audioContext.sampleRate;
     const n=Math.max(128,Math.floor(sampleRate*.11));
@@ -169,12 +277,20 @@ async function initializeAudio(){
   // Retomar dentro do gesto, antes de qualquer await.
   if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
   if(audioLoad)return audioLoad;
-  const entries=[['fx','efeitos.mp3'],['rua','ambiente-rua.mp3'],['pessoas','ambiente-pessoas.mp3']];
+  const entries=[['fx','efeitos.mp3'],['rua','ambiente-rua.mp3'],['pessoas','ambiente-pessoas.mp3'],['passos','passos-calcada.mp3']];
   audioLoad=Promise.all(entries.map(async ([key,file])=>{
-    const resp=await fetch('./'+file);
-    if(!resp.ok)throw new Error('Som indisponível: '+file);
-    const ab=await resp.arrayBuffer();
-    soundBuffers[key]=await audioContext.decodeAudioData(ab);
+    try{
+      const resp=await fetch('./'+file);
+      if(!resp.ok)throw new Error('Som indisponível: '+file);
+      const ab=await resp.arrayBuffer();
+      soundBuffers[key]=await audioContext.decodeAudioData(ab);
+    }catch(err){
+      if(key==='passos'){
+        console.warn('Sem áudio real de passos; mantendo efeito sintetizado:',err);
+        return;
+      }
+      throw err;
+    }
   })).then(()=>{
     if(started)startAmbience();
     const status=el('audio-status');
@@ -231,7 +347,7 @@ function installAudioPanel(){
     list.append(button);
   }
   const stepsButton=document.createElement('button');
-  stepsButton.type='button';stepsButton.textContent='▶ Passos (teste)';
+  stepsButton.type='button';stepsButton.textContent='▶ Passos na calçada (teste)';
   stepsButton.addEventListener('click',()=>{
     if(!audioEnabled){audioEnabled=true;applyAudioGain();}
     initializeAudio().then(()=>{
@@ -388,8 +504,9 @@ const aimTargetPoint=new THREE.Vector3();
 let contactShadow = null, sunLight = null, pawBadge = null;
 // Ajustes são DESLOCAMENTOS LOCAIS a partir da posição atual do emblema.
 // Assim o jogador pode calibrar sem mexer no esqueleto ou no colete GLB.
-const PAW_STORAGE_KEY='tio-urso-pata-v087';
-const PAW_DEFAULTS=Object.freeze({x:0,y:0,z:0,rx:0,ry:0,rz:0,escala:1});
+const PAW_STORAGE_KEY='tio-urso-pata-v088';
+// Ajuste aprovado no celular pelo usuário, fixado como novo padrão.
+const PAW_DEFAULTS=Object.freeze({x:0,y:-.08,z:0,rx:-10,ry:0,rz:0,escala:1});
 let pawAdjustments={...PAW_DEFAULTS};
 let pawBasePosition=null,pawBaseQuaternion=null;
 try{
@@ -1125,7 +1242,11 @@ function updateAimReticle(dt){
   // A cruz marca o ponto onde um disparo SIMULADO orientado pelo centro
   // da câmera encontraria o cenário. Ainda não há tiro nem dano.
   camera.updateMatrixWorld();
-  aimRaycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+  // Converter o deslocamento da cruz da tela para coordenadas NDC, para
+  // a prévia do raycast corresponder ao ponto calibrado (sem disparos reais).
+  const ndcX=reticleAdjustments.x*2/Math.max(1,mount.clientWidth);
+  const ndcY=-reticleAdjustments.y*2/Math.max(1,mount.clientHeight);
+  aimRaycaster.setFromCamera(new THREE.Vector2(ndcX,ndcY),camera);
   const hits=aimRaycaster.intersectObjects(aimColliders,false);
   if(hits.length){
     aimTargetPoint.copy(hits[0].point);
@@ -1136,7 +1257,7 @@ function updateAimReticle(dt){
 // Ajuste fino opcional pelo telefone: abra ?ajuste=1.
 // Permite corrigir poucos centímetros sem remontar ou reenviar o jogo.
 function enableAccessoryCalibration(){
-  if(!FIREARM_TEST_MODE || PAW_ADJUST_MODE)return;
+  if(!FIREARM_TEST_MODE || PAW_ADJUST_MODE || RETICLE_ADJUST_MODE)return;
   const panel=document.createElement('aside');
   panel.id='accessory-calibration';
   panel.setAttribute('aria-label','Ajuste fino exclusivo de mira da pistola');
@@ -1725,6 +1846,8 @@ try{
   const loaded=await buildScene();
   enableAccessoryCalibration();
   enablePawCalibration();
+  enableReticleCalibration();
+  applyReticleAdjustments();
   ready=true;introButton.disabled=false;
   introButton.textContent='INICIAR PATRULHAMENTO';
   el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';
