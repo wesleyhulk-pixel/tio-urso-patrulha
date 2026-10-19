@@ -1,3 +1,5 @@
+// v0.8.9: orientacao paisagem ao iniciar via fullscreen + Screen Orientation API;
+// manifest PWA pede paisagem na abertura do app instalado. Mira X:-15 Y:-40 fixa.
 // v0.8.8: calibração APENAS da cruz na tela; pata das costas aprovada
 // (Y -0.08, RX -10) fixada. Passos reais do Mixkit com sincronização dos clipes;
 // todas as calibrações da tonfa, coldre e pistola preservadas.
@@ -63,8 +65,8 @@ const LIMIT = 48;
 const el = id => document.getElementById(id);
 // Retícula: ajuste VISUAL independente da posição/rotação da arma e da câmera.
 // Valores em pixels, relativos ao centro do visor em paisagem.
-const RETICLE_STORAGE_KEY='tio-urso-cruz-v088';
-const RETICLE_DEFAULTS=Object.freeze({x:0,y:0});
+const RETICLE_STORAGE_KEY='tio-urso-cruz-v089';
+const RETICLE_DEFAULTS=Object.freeze({x:-15,y:-40});
 let reticleAdjustments={...RETICLE_DEFAULTS};
 try {
   const stored=JSON.parse(localStorage.getItem(RETICLE_STORAGE_KEY)||'null');
@@ -88,7 +90,7 @@ function enableReticleCalibration(){
   panel.setAttribute('aria-label','Ajuste fino exclusivo da cruz de mira');
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(290px,60vw);max-height:72vh;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:#071b2df2;border:1px solid #ffce63;color:white;border-radius:12px;padding:10px;box-shadow:0 6px 22px #0009;font:12px system-ui;';
   panel.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.8.8</strong><button id="reticle-toggle" type="button">−</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.8.9</strong><button id="reticle-toggle" type="button">−</button></div>
     <div id="reticle-body">
       <p style="font-size:11px;line-height:1.45;color:#dfebfa;margin:8px 0">Movimente a CRUZ na tela. O braço e os equipamentos calibrados não serão alterados.</p>
       <div id="reticle-values" style="padding:8px;background:#18354b;border-radius:7px;text-align:center;font-weight:700" aria-live="polite"></div>
@@ -1836,10 +1838,34 @@ function installControls(){
   const release=e=>{if(cameraPointer===e.pointerId)cameraPointer=null;};
   mount.addEventListener('pointerup',release);mount.addEventListener('pointercancel',release);
   mount.addEventListener('lostpointercapture',release);
-  el('full').addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();if(screen.orientation?.lock&&screen.orientation.lock instanceof Function)await screen.orientation.lock('landscape');}catch(e){notify('Gire o celular manualmente para jogar em paisagem.');}});
+  el('full').addEventListener('click',async()=>{
+    if(document.fullscreenElement){
+      try {screen.orientation?.unlock?.();await document.exitFullscreen();}
+      catch(err){console.warn('Saida da tela cheia:',err);}
+    } else {
+      const rotated=await requestLandscapeForGame();
+      if(!rotated)notify('O navegador não autorizou girar a tela. Ative a rotação automática do Android ou gire o celular.',4100);
+    }
+  });
   el('ignore-rotate').addEventListener('click',()=>{ignorePortrait=true;el('rotate-hint').classList.add('ignored');});
   window.addEventListener('resize',()=>{if(window.innerWidth>window.innerHeight&&!ignorePortrait)el('rotate-hint').classList.remove('ignored');});
 }
+// v0.8.9 - navegador: a rotacao precisa ser solicitada durante o gesto do usuario.
+// Apps instalados usam adicionalmente a preferencia landscape no manifest.
+async function requestLandscapeForGame(){
+  if(window.matchMedia?.('(orientation: landscape)').matches)return true;
+  // Em muitos navegadores Android, orientation.lock exige tela cheia.
+  if(!document.fullscreenElement && typeof document.documentElement.requestFullscreen==='function'){
+    try {await document.documentElement.requestFullscreen({navigationUI:'hide'});}
+    catch(err){console.warn('Tela cheia indisponivel:',err);}
+  }
+  if(screen.orientation && typeof screen.orientation.lock==='function'){
+    try {await screen.orientation.lock('landscape');return true;}
+    catch(err){console.warn('Bloqueio de orientacao indisponivel:',err);}
+  }
+  return window.matchMedia?.('(orientation: landscape)').matches ?? (innerWidth>innerHeight);
+}
+
 try{
   installControls();
   installAudioPanel();
@@ -1854,10 +1880,16 @@ try{
   introButton.addEventListener('click',async()=>{
     if(!ready)return;
     started=true;el('intro').style.display='none';
-    // Áudio só começa após clicar em INICIAR PATRULHAMENTO.
+    document.body.classList.add('patrulha-iniciada');
+    // Audio e orientacao devem comecar pelo toque do usuario (permissao Android).
     initializeAudio();
+    const landscapeResult=requestLandscapeForGame();
     notify('Empurre o joystick até o topo para CORRER automaticamente. Converse com 3 cidadãos!',3900);
-    try {if(screen.orientation?.lock)await screen.orientation.lock('landscape');} catch(e) { /* mobile browsers may disallow */ }
+    const rotated=await landscapeResult;
+    if(!rotated){
+      // Orientacao bloqueada pelo navegador/sistema: mostra instrucoes, sem travar o jogo.
+      notify('Para paisagem, habilite Rotação automática no Android e gire o celular.',4500);
+    }
   });
   loop();
 } catch(error){

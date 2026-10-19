@@ -1,0 +1,30 @@
+{
+  "id": "./",
+  "name": "Tio Urso: Patrulha",
+  "short_name": "Tio Urso",
+  "description": "Simulador 3D de patrulhamento urbano — protótipo experimental.",
+  "start_url": "./?v=089",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "landscape",
+  "background_color": "#081a2d",
+  "theme_color": "#081a2d",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
