@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Protótipo 0.8.3</title>
-  <link rel="stylesheet" href="./style.css?v=083" />
+  <title>Tio Urso: Patrulha | Protótipo 0.8.4</title>
+  <link rel="stylesheet" href="./style.css?v=084" />
   <script type="importmap">
     {
       "imports": {
@@ -21,14 +21,15 @@
     <div id="view"></div>
 
     <header id="top-ui">
-      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.8.3 • CENÁRIO DE TESTE</small></div></div>
+      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.8.4 • CENÁRIO DE TESTE</small></div></div>
       <div class="score"><span id="level">NÍVEL 1</span><div class="xpbar"><span id="xp-fill"></span></div><span id="xp-label">0 XP</span></div>
       <button id="full" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button>
     </header>
 
     <div id="mission"><div class="mission-tag">📻 MISSÃO 01</div><strong>Contato comunitário</strong><small>Converse com 3 cidadãos</small><div class="mission-progress"><span id="mission-count">0/3</span><span id="mission-status">Em andamento</span></div></div>
     <div class="map-wrap"><canvas id="minimap" width="180" height="180" aria-label="Minimapa da área de teste"></canvas><small>AVENIDA DE TESTE</small></div>
-    <!-- Retícula só aparece com pistola empunhada e MIRAR ativado no teste. -->
+    <!-- Retícula 2D fixa sobre a cena. Na mira, a câmera se desloca para o ombro
+         e olha para a frente, mantendo o centro livre do corpo do personagem. -->
     <div id="aim-crosshair" hidden aria-label="Cruz de mira visual" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;text-align:center;filter:drop-shadow(0 1px 3px #000)">
       <svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true"><path d="M21 3v11M21 28v11M3 21h11M28 21h11" stroke="#fff5ce" stroke-width="2.2"/><circle cx="21" cy="21" r="4.5" fill="none" stroke="#fff5ce" stroke-width="1.6"/><circle cx="21" cy="21" r="1.1" fill="#ffcf55"/></svg>
     </div>
@@ -68,6 +69,6 @@
     <div id="rotate-hint"><div><span>📱 ↻</span><b>Gire o celular para horizontal</b><p>Este jogo foi preparado para o modo paisagem.</p><button id="ignore-rotate">Continuar assim mesmo</button></div></div>
     <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
   </main>
-  <script type="module" src="./app.js?v=083"></script>
+  <script type="module" src="./app.js?v=084"></script>
 </body>
 </html>

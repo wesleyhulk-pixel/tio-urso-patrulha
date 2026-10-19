@@ -1,19 +1,20 @@
-TIO URSO: PATRULHA — v0.8.3
+TIO URSO: PATRULHA — ATUALIZAÇÃO 0.8.4
 
-ATUALIZAÇÃO DE MIRA COM EIXOS INDEPENDENTES
+Corrigido:
+- Câmera de mira em terceira pessoa sobre o ombro, com cruz de mira no centro apontando para a frente.
+- Emblema menor (14,5 x 16,5 cm na escala do jogo), em plano fino posicionado sobre a superfície das costas.
+- Calibração de pistola em mira aprovada como padrão: x=-0.012, y=0.195, z=-0.049, pitch=0, yaw=5, roll=-10.
 
-Atualize index.html e app.js no GitHub. Este pacote contém também este LEIA-ME.txt.
-NÃO apague tio-urso.glb, pistola.glb, tonfa.glb, coldre.glb ou style.css.
+Preservado:
+- Seis outros encaixes da tonfa, coldre e pistola e seus dados já salvos no navegador.
+- Animações do urso, tonfa, corrida automática, missão e XP.
+- Texturas e arquivos GLB; nenhum GLB precisa ser reenviado.
 
-Use: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=083
+Como instalar: extraia este ZIP; no mesmo repositório GitHub, substitua index.html e app.js.
+O arquivo LEIA-ME.txt é opcional. Não apague outros arquivos.
+O ajuste de mira é apenas visual (sem disparos habilitados).
 
-Correções:
-- Braço fixo da v0.8.2 permanece sem alterações.
-- Pistola apontando adiante como base da mira; ajuste por quaternions em referencial estável.
-- Cano ↑/↓, Apontar ←/→ e Torcer passam a ser movimentos diferentes.
-- Somente o estado Pistola — Mira permanece ajustável.
-- Seis calibrações já aprovadas (tonfa/coldre/pistola descanso) intactas.
-- Posição XYZ da mira antiga mantida quando disponível; GIROS antigos inválidos NÃO são importados.
-- Ajustes da mira são salvos em nova chave v083.
+Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=084
+Para testar a pistola: ?ajuste=1&v=084
 
-Teste visual obrigatório no Android antes de considerar o ângulo final concluído.
+Verifique no Android: retícula livre do colete; mira vertical; patch pequeno e rente; caminhada e equipamentos intactos.

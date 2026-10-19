@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.8.4: câmera sobre ombro com centro de mira livre das costas; pata menor
+// presa à superfície traseira do colete, sem tocar nos riggings aprovados.
 // v0.8.3: ajuste da mira por quaternions em REFERENCIAL FIXO do personagem.
 // Pitch/yaw/roll são independentes da rotação Euler inicial do Meshy;
 // pistola aponta adiante (+Z), com cano original no eixo -X do GLB.
@@ -524,7 +526,7 @@ const PISTOL_REST_HAND = Object.freeze({x:-0.037,y:0.195,z:-0.049,rx:-35,ry:-120
 const pistolDefaults={
   pistolaNoColdre:PISTOL_REST_HOLSTER,
   pistolaDescanso:PISTOL_REST_HAND,
-  pistolaMira:Object.freeze({x:PISTOL_REST_HAND.x,y:PISTOL_REST_HAND.y,z:PISTOL_REST_HAND.z,pitch:0,yaw:0,roll:0})
+  pistolaMira:Object.freeze({x:-0.012,y:0.195,z:-0.049,pitch:0,yaw:5,roll:-10})
 };
 let pistolAdjustments={};
 function loadPistolAdjustments(){
@@ -546,7 +548,7 @@ function loadPistolAdjustments(){
   }
   for(const axis of AIM_ROTATION){
     pistolAdjustments.pistolaMira[axis]=Number.isFinite(existing[axis])
-      ? normalizeAngleDegrees(existing[axis]):0;
+      ? normalizeAngleDegrees(existing[axis]):def[axis];
   }
 }
 
@@ -1000,20 +1002,30 @@ function makePawBadge(){
   texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
   const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,
     side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2});
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.31,.355),material);
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.145,.165),material);
   mesh.name='Emblema_Pata_Colete_Costas';
-  // Centro das costas do colete no referencial original do GLB.
-  // O eixo frontal do personagem é +Z; a parte traseira é -Z.
-  const referencePos=new THREE.Vector3(0,1.32,-.229);
+  // Encontre a SUPERFÍCIE do colete: o posicionamento antigo -0.229 era
+  // fixo e por isso o desenho parecia flutuar atrás do Tio Urso.
+  // Em referencial do personagem, traseira = -Z; o raycast segue +Z.
   characterModel.updateWorldMatrix(true,true);
-  const worldPos=characterModel.localToWorld(referencePos.clone());
+  const hitStart=characterModel.localToWorld(new THREE.Vector3(0,1.37,-1.2));
+  const rayDirection=new THREE.Vector3(0,0,1)
+    .transformDirection(characterModel.matrixWorld).normalize();
+  const meshList=[];
+  characterModel.traverse(o=>{if(o.isMesh && o!==mesh)meshList.push(o);});
+  const surfaceRay=new THREE.Raycaster(hitStart,rayDirection,0,2.0);
+  const hits=surfaceRay.intersectObjects(meshList,false);
+  // A malha do colete pode mudar em animação, mas seu osso torácico é estável.
+  // Usar a primeira superfície encontrada atrás do tronco, com folga 3mm.
+  const fallback=characterModel.localToWorld(new THREE.Vector3(0,1.37,-.229));
+  const worldPos=hits.length? hits[0].point.clone().addScaledVector(rayDirection,-.003):fallback;
   const boneWorld=clothBone.getWorldQuaternion(new THREE.Quaternion());
-  const baseWorld=characterModel.getWorldQuaternion(new THREE.Quaternion());
-  const targetWorld=baseWorld.multiply(new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(0,1,0),Math.PI));
+  const targetWorld=characterModel.getWorldQuaternion(new THREE.Quaternion())
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI));
   clothBone.add(mesh);
   mesh.position.copy(clothBone.worldToLocal(worldPos));
   mesh.quaternion.copy(boneWorld.invert().multiply(targetWorld));
+  mesh.renderOrder=2;
   pawBadge=mesh;
 }
 
@@ -1252,18 +1264,29 @@ function update(dt){
   }
   const behindX=Math.sin(camYaw),behindZ=Math.cos(camYaw);
   const landscape=window.innerWidth>window.innerHeight;
+  // Third-person over-the-shoulder: a câmera sai à direita do personagem,
+  // mas a retícula permanece no centro do viewport e aponta PARA A RUA,
+  // não para o colete. Direção para frente é o oposto do vetor 'behind'.
   const distance=(landscape?CAM_DISTANCE_WIDE:CAM_DISTANCE_TALL)-.30*aimBlend;
   const flatDistance=distance*Math.cos(camPitch);
   const eyeLevel=CAM_TARGET_HEIGHT+.14*aimBlend+distance*Math.sin(camPitch);
-  const shoulderX=Math.cos(camYaw)*.36*aimBlend;
-  const shoulderZ=-Math.sin(camYaw)*.36*aimBlend;
+  // Retrato tem campo horizontal menor: não cortar o Tio Urso da tela.
+  const shoulderDistance=(landscape?.80:.34)*aimBlend;
+  const shoulderX=Math.cos(camYaw)*shoulderDistance;
+  const shoulderZ=-Math.sin(camYaw)*shoulderDistance;
+  const lookAhead=5.0*aimBlend;
   camPosWanted.set(
     player.position.x+behindX*flatDistance+shoulderX,
     player.position.y+Math.max(.44,eyeLevel),
     player.position.z+behindZ*flatDistance+shoulderZ
   );
   camera.position.lerp(camPosWanted,1-Math.exp(-dt*10));
-  targetPos.set(player.position.x+shoulderX*.45,player.position.y+CAM_TARGET_HEIGHT+.14*aimBlend,player.position.z+shoulderZ*.45);
+  // Preservar olhar livre para cima/baixo também durante a mira.
+  targetPos.set(
+    player.position.x-behindX*lookAhead,
+    player.position.y+CAM_TARGET_HEIGHT+.14*aimBlend-lookAhead*Math.tan(camPitch),
+    player.position.z-behindZ*lookAhead
+  );
   camera.lookAt(targetPos);
   updateAimReticle(dt);
   const c=nearbyCitizen();const hint=el('action-hint');
