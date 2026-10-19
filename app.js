@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.5: calibrações fornecidas pelo usuário fixadas nos padrões do cinto;
+// ajuste adicional de tonfa na mão em DESCANSO e no ATAQUE (independentes).
+// Preserva rig, GLBs texturizados e controles da v0.7.4.
 // v0.7.4: ajuste fino de posição E rotação XYZ para tonfa guardada/coldre.
 // Persiste localmente, importa posições antigas da v0.7.3, sem mudar mão/rigging.
 // v0.7.3: recuperação sem mexer no esqueleto/dedos; encaixes estáveis no corpo.
@@ -52,6 +55,7 @@ let walkBlend = 0;
 let animationMixer = null;
 let idleAnim = null, walkAnim = null, runAnim = null, comboAnim = null;
 let comboActive = false, comboBlend = 0, tonfaAttachedToHand = false;
+let handAttackBlend = 0, comboPreviewLocked = false;
 let runningBlend = 0;
 let hasRiggedAnimations = false;
 let actionElapsed = 999;
@@ -349,27 +353,37 @@ function findRigBone(root, target){
 // Valores em unidades do GLB original. O jogo escala o modelo inteiro de forma uniforme.
 // Coordenadas em unidades do GLB original; rotação em GRAUS para facilitar
 // o ajuste no celular. O eixo Y gira o acessório em torno da vertical.
-const BELT_TONFA = Object.freeze({x:.475, y:.815, z:-.075, rx:1.15, ry:-3.44, rz:-6.88});
+const BELT_TONFA = Object.freeze({x:.225, y:.815, z:.075, rx:11.15, ry:1.56, rz:8.12});
 // Coldre começa virado ~180° no eixo vertical, em direção às costas.
 // O ângulo exato depende da orientação exportada pelo Meshy, então é ajustável.
-const BELT_HOLSTER = Object.freeze({x:-.450, y:.855, z:-.045, rx:1.72, ry:169.69, rz:-4.58});
-const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v074';
-const ACCESSORY_LEGACY_KEY = 'tio-urso-acessorios-v073';
-const ACCESSORY_NAMES = ['tonfa','coldre'];
+const BELT_HOLSTER = Object.freeze({x:-.250, y:.855, z:-.020, rx:1.72, ry:-95.31, rz:-4.58});
+// Rest/Attack use identical default grips so the previously successful game
+// animation is preserved unless the user calibrates each one independently.
+const HAND_TONFA_REST = Object.freeze({x:0, y:-.125, z:-.008, rx:0, ry:0, rz:0});
+const HAND_TONFA_ATTACK = Object.freeze({x:0, y:-.125, z:-.008, rx:0, ry:0, rz:0});
+const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v075';
+const ACCESSORY_LEGACY_KEYS = ['tio-urso-acessorios-v074','tio-urso-acessorios-v073'];
+const ACCESSORY_NAMES = ['tonfa','coldre','maoDescanso','maoAtaque'];
 const AXES_POSITION = ['x','y','z'];
 const AXES_ROTATION = ['rx','ry','rz'];
-const accessoryDefaults = {tonfa:BELT_TONFA,coldre:BELT_HOLSTER};
-let accessoryAdjustments = null;
+const accessoryDefaults = {
+  tonfa:BELT_TONFA, coldre:BELT_HOLSTER,
+  maoDescanso:HAND_TONFA_REST, maoAtaque:HAND_TONFA_ATTACK
+};
+let accessoryAdjustments=null;
 function normalizeAngleDegrees(value){
-  // Sempre no intervalo [-180,180], sem somar indefinidamente.
   return Math.round((((value+180)%360+360)%360-180)*100)/100;
 }
 function loadAccessoryAdjustments(){
   let saved=null;
   try {
-    saved=JSON.parse(localStorage.getItem(ACCESSORY_ADJUST_KEY)||'null');
-    if(!saved) saved=JSON.parse(localStorage.getItem(ACCESSORY_LEGACY_KEY)||'null');
-  }catch(e){ /* Navegação privativa pode bloquear armazenamento. */ }
+    for(const key of [ACCESSORY_ADJUST_KEY,...ACCESSORY_LEGACY_KEYS]){
+      const raw=localStorage.getItem(key);
+      if(!raw)continue;
+      const obj=JSON.parse(raw);
+      if(obj && typeof obj==='object'){saved=obj;break;}
+    }
+  }catch(e){console.warn('Não foi possível recuperar ajustes anteriores',e);}
   const positions={};
   for(const key of ACCESSORY_NAMES){
     const defaults=accessoryDefaults[key];
@@ -395,19 +409,35 @@ function applyBeltPlacement(){
   if(tonfaBeltSocket){
     const p=accessoryAdjustments.tonfa;
     tonfaBeltSocket.position.set(p.x,p.y,p.z);
-    tonfaBeltSocket.rotation.set(
-      THREE.MathUtils.degToRad(p.rx),
-      THREE.MathUtils.degToRad(p.ry),
-      THREE.MathUtils.degToRad(p.rz),'XYZ');
+    tonfaBeltSocket.rotation.set(THREE.MathUtils.degToRad(p.rx),
+      THREE.MathUtils.degToRad(p.ry),THREE.MathUtils.degToRad(p.rz),'XYZ');
   }
   if(rightHolster){
     const p=accessoryAdjustments.coldre;
     rightHolster.position.set(p.x,p.y,p.z);
-    rightHolster.rotation.set(
-      THREE.MathUtils.degToRad(p.rx),
-      THREE.MathUtils.degToRad(p.ry),
-      THREE.MathUtils.degToRad(p.rz),'XYZ');
+    rightHolster.rotation.set(THREE.MathUtils.degToRad(p.rx),
+      THREE.MathUtils.degToRad(p.ry),THREE.MathUtils.degToRad(p.rz),'XYZ');
   }
+}
+function applyHandPlacement(attackBlend=handAttackBlend){
+  if(!tonfaModel || tonfaModel.parent!==tonfaHandSocket)return;
+  const a=accessoryAdjustments.maoDescanso;
+  const b=accessoryAdjustments.maoAtaque;
+  const t=THREE.MathUtils.clamp(attackBlend,0,1);
+  tonfaModel.position.set(
+    THREE.MathUtils.lerp(a.x,b.x,t),
+    THREE.MathUtils.lerp(a.y,b.y,t),
+    THREE.MathUtils.lerp(a.z,b.z,t));
+  // Shortest-path interpolation for angles, preventing a sudden rotation at 180°.
+  const angle=(key)=>{
+    const difference=normalizeAngleDegrees(b[key]-a[key]);
+    return THREE.MathUtils.degToRad(a[key]+difference*t);
+  };
+  tonfaModel.rotation.set(angle('rx'),angle('ry'),angle('rz'),'XYZ');
+}
+function applyAccessoryPlacement(){
+  applyBeltPlacement();
+  applyHandPlacement();
 }
 
 function refreshTonfaState(){
@@ -415,20 +445,17 @@ function refreshTonfaState(){
   const readyTonfa=talked.size>=3 && tonfaAttachedToHand && tonfaAssetLoaded;
   const inHand=readyTonfa && equipped==='tonfa';
   const socket=inHand ? tonfaHandSocket : tonfaBeltSocket;
-  if(tonfaModel.parent!==socket){
-    socket.add(tonfaModel); // MOVE o mesmo objeto GLB, não duplica
-  }
-  // Mesma peça 3D e textura: única diferença é o ponto de apoio.
+  if(tonfaModel.parent!==socket)socket.add(tonfaModel);
   if(inHand){
-    // A empunhadura lateral fica próxima da palma em vez de acima dos dedos.
-    tonfaModel.position.set(0,-.125,-.008);
+    applyHandPlacement();
   }else{
     tonfaModel.position.set(0,0,0);
+    tonfaModel.rotation.set(0,0,0);
   }
-  tonfaModel.quaternion.identity();
   tonfaModel.scale.setScalar(1);
   tonfaModel.visible=readyTonfa;
 }
+
 function attachTonfaToRig(){
   rightHandBone=findRigBone(characterModel,'mixamorig:RightHand');
   hipBone=findRigBone(characterModel,'mixamorig:Hips');
@@ -503,20 +530,26 @@ function enableAccessoryCalibration(){
   const panel=document.createElement('aside');
   panel.id='accessory-calibration';
   panel.setAttribute('aria-label','Ajuste fino dos equipamentos 3D');
-  panel.style.cssText='position:fixed;right:8px;top:20%;z-index:99999;width:min(224px,58vw);max-height:65vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
+  panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(254px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-      <b>AJUSTE FINO 0.7.4</b>
+      <b>AJUSTE FINO 0.7.5</b>
       <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
     </div>
     <div id="cal-body">
-      <label style="display:block;margin-top:7px">Equipamento
+      <label style="display:block;margin-top:7px">Equipamento/estado
         <select id="cal-item" style="display:block;width:100%;margin:4px 0 8px;padding:5px;color:#111;background:#fff;border-radius:5px">
-          <option value="tonfa">Tonfa • cinto esquerdo</option>
-          <option value="coldre">Coldre • cinto direito</option>
+          <option value="tonfa">Tonfa • guardada no cinto</option>
+          <option value="coldre">Coldre • lado direito</option>
+          <option value="maoDescanso">Tonfa • mão em descanso</option>
+          <option value="maoAtaque">Tonfa • mão em ataque</option>
         </select>
       </label>
       <div id="cal-readout" aria-live="polite" style="font-size:11px;line-height:1.6;margin:6px 0"></div>
+      <div id="cal-preview-wrap" hidden>
+        <button id="cal-preview" type="button" class="cal-secondary">Congelar pose de ataque</button>
+        <small style="display:block;opacity:.85;margin:4px 0">Congele a animação para posicionar a tonfa durante um golpe; toque novamente para liberar.</small>
+      </div>
       <details open><summary style="font-weight:700;padding:5px 0;cursor:pointer">↔ POSIÇÃO XYZ</summary>
         <div id="cal-pos-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
         <button id="cal-reset-pos" type="button" class="cal-secondary">Restaurar posição</button>
@@ -524,17 +557,15 @@ function enableAccessoryCalibration(){
       <details open><summary style="font-weight:700;padding:6px 0;cursor:pointer">↻ ROTAÇÃO XYZ</summary>
         <label style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin:5px 0">Passo do giro
           <select id="cal-step" style="padding:5px;color:#111;background:white;border-radius:5px">
-            <option value="1">1° (fino)</option>
-            <option value="5" selected>5°</option>
-            <option value="15">15°</option>
+            <option value="1">1° (fino)</option><option value="5" selected>5°</option><option value="15">15°</option>
           </select>
         </label>
         <div id="cal-rot-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
         <button id="cal-rotate-back" type="button" class="cal-secondary">Girar Y +180°</button>
         <button id="cal-reset-rot" type="button" class="cal-secondary">Restaurar rotação</button>
       </details>
-      <button id="cal-copy" type="button" class="cal-secondary">Copiar meus ajustes</button>
-      <small style="display:block;margin-top:5px;opacity:.85">Salvo só neste navegador. Ajuste o coldre girando Y; na tonfa experimente X e Z.</small>
+      <button id="cal-copy" type="button" class="cal-secondary">Copiar meus 4 ajustes</button>
+      <small style="display:block;margin-top:5px;opacity:.85">Todos os valores são salvos no navegador. O estado ataque não altera a posição guardada.</small>
       <small id="cal-message" role="status" style="display:block;min-height:12px;margin-top:4px;color:#ffe19b"></small>
     </div>`;
   document.body.append(panel);
@@ -542,63 +573,84 @@ function enableAccessoryCalibration(){
     btn.style.cssText='display:block;width:100%;margin-top:6px;padding:6px 3px;border-radius:5px;background:#384e62;color:white;border:1px solid #8195a2;font-size:11px;';
   }
   const choice=panel.querySelector('#cal-item');
-  const label=panel.querySelector('#cal-readout');
+  const readout=panel.querySelector('#cal-readout');
   const message=panel.querySelector('#cal-message');
+  const previewButton=panel.querySelector('#cal-preview');
+  const isHand=()=>['maoDescanso','maoAtaque'].includes(choice.value);
   const show=()=>{
     const p=accessoryAdjustments[choice.value];
-    label.innerHTML=`<span>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}</span><br><span>Giro: X ${p.rx.toFixed(1)}° · Y ${p.ry.toFixed(1)}° · Z ${p.rz.toFixed(1)}°</span>`;
+    readout.innerHTML=`<span>Posição: X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)} · Z ${p.z.toFixed(3)}</span><br><span>Giro: X ${p.rx.toFixed(2)}° · Y ${p.ry.toFixed(2)}° · Z ${p.rz.toFixed(2)}°</span>`;
+    panel.querySelector('#cal-preview-wrap').hidden=choice.value!=='maoAtaque';
+    previewButton.textContent=comboPreviewLocked?'Soltar pose de ataque':'Congelar pose de ataque';
   };
+  const endPreview=()=>{
+    if(!comboPreviewLocked)return;
+    comboPreviewLocked=false;
+    if(comboAnim){comboAnim.paused=false;comboAnim.stop();}
+    comboActive=false;
+    // The ordinary animation blend will restore rest pose smoothly.
+  };
+  const beginPreview=()=>{
+    if(!started){message.textContent='Inicie o jogo antes de congelar a pose.';return;}
+    if(!comboAnim){message.textContent='O GLB não contém a animação de ataque.';return;}
+    if(equipped!=='tonfa')selectEquipment('tonfa');
+    if(equipped!=='tonfa')return;
+    comboAnim.paused=false;
+    comboAnim.reset();comboAnim.setLoop(THREE.LoopOnce,1);
+    comboAnim.setEffectiveTimeScale(1);comboAnim.play();
+    comboAnim.time=Math.min(1.2,comboAnim.getClip().duration*.45);
+    comboAnim.paused=true;
+    comboPreviewLocked=true;comboActive=true;
+    message.textContent='Pose congelada: ajuste XYZ e visualize no modelo.';
+    show();
+  };
+  previewButton.addEventListener('click',()=>comboPreviewLocked?endPreview() : beginPreview());
   const change=(axis,delta)=>{
     const p=accessoryAdjustments[choice.value];
     const next=p[axis]+delta;
-    p[axis]=AXES_ROTATION.includes(axis)
-      ? normalizeAngleDegrees(next)
+    p[axis]=AXES_ROTATION.includes(axis) ? normalizeAngleDegrees(next)
       : Math.round(THREE.MathUtils.clamp(next,-1.5,2)*1000)/1000;
-    applyBeltPlacement();
-    saveAccessoryAdjustments();
-    message.textContent='';
-    show();
+    applyAccessoryPlacement();saveAccessoryAdjustments();show();
   };
-  const addButton=(parent,text,axis,direction,isRotation)=>{
-    const btn=document.createElement('button');
-    btn.type='button';btn.textContent=text;
+  const addButton=(parent,name,axis,dir,isRotation)=>{
+    const btn=document.createElement('button');btn.type='button';btn.textContent=name;
     btn.style.cssText='min-height:33px;padding:5px 2px;color:#0d2133;background:#f5d47b;border-radius:5px;font:12px system-ui;';
     btn.addEventListener('click',()=>{
-      const step=isRotation ? Number(panel.querySelector('#cal-step').value) : .025;
-      change(axis,direction*step);
-    });
-    parent.append(btn);
+      const step=isRotation?Number(panel.querySelector('#cal-step').value):.025;
+      change(axis,step*dir);
+    });parent.append(btn);
   };
   const pos=panel.querySelector('#cal-pos-buttons');
   for(const [name,axis] of [['Lado','x'],['Altura','y'],['Frente','z']]){
-    addButton(pos,`${name} −`,axis,-1,false);
-    addButton(pos,`${name} +`,axis,1,false);
+    addButton(pos,`${name} −`,axis,-1,false);addButton(pos,`${name} +`,axis,1,false);
   }
   const rot=panel.querySelector('#cal-rot-buttons');
-  for(const axis of ['rx','ry','rz']){
+  for(const axis of AXES_ROTATION){
     const name=axis.slice(1).toUpperCase();
-    addButton(rot,`Giro ${name} −`,axis,-1,true);
-    addButton(rot,`Giro ${name} +`,axis,1,true);
+    addButton(rot,`Giro ${name} −`,axis,-1,true);addButton(rot,`Giro ${name} +`,axis,1,true);
   }
-  choice.addEventListener('change',()=>{message.textContent='';show();});
+  choice.addEventListener('change',()=>{
+    endPreview();message.textContent='';
+    if(isHand() && started && talked.size>=3 && equipped!=='tonfa')selectEquipment('tonfa');
+    show();
+  });
   panel.querySelector('#cal-rotate-back').addEventListener('click',()=>change('ry',180));
-  const resetAxes=(axes)=>{
+  const resetAxes=axes=>{
     const key=choice.value;
     for(const axis of axes)accessoryAdjustments[key][axis]=accessoryDefaults[key][axis];
-    applyBeltPlacement();saveAccessoryAdjustments();show();
-    message.textContent='Apenas este equipamento foi restaurado.';
+    applyAccessoryPlacement();saveAccessoryAdjustments();show();
+    message.textContent='Restaurado apenas o estado selecionado.';
   };
   panel.querySelector('#cal-reset-pos').addEventListener('click',()=>resetAxes(AXES_POSITION));
   panel.querySelector('#cal-reset-rot').addEventListener('click',()=>resetAxes(AXES_ROTATION));
   panel.querySelector('#cal-copy').addEventListener('click',async()=>{
     const result=JSON.stringify(accessoryAdjustments,null,2);
-    try{await navigator.clipboard.writeText(result);message.textContent='Posições e rotações copiadas!';}
+    try{await navigator.clipboard.writeText(result);message.textContent='Quatro ajustes copiados!';}
     catch(e){message.textContent='Cópia indisponível neste navegador.';}
   });
-  panel.querySelector('#cal-collapse').addEventListener('click',e=>{
-    const body=panel.querySelector('#cal-body');
-    body.hidden=!body.hidden;
-    e.currentTarget.textContent=body.hidden?'+':'−';
+  panel.querySelector('#cal-collapse').addEventListener('click',()=>{
+    const body=panel.querySelector('#cal-body');body.hidden=!body.hidden;
+    panel.querySelector('#cal-collapse').textContent=body.hidden?'+':'−';
   });
   show();
 }
@@ -619,7 +671,7 @@ function selectEquipment(item){
 }
 function doAction(){
   if(!started)return;
-  if(comboActive || comboBlend>.2 || actionElapsed<.48)return;
+  if(comboPreviewLocked || comboActive || comboBlend>.2 || actionElapsed<.48)return;
   actionElapsed=0;
   // Somente demonstração: não aplicamos dano aos cidadãos das missões.
   if(comboAnim){
@@ -784,6 +836,9 @@ function update(dt){
     walkAnim.timeScale=THREE.MathUtils.clamp(speed/PLAYER_SPEED,.6,1.3);
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
+    // Blend only the accessory's relative socket transform, never the finger bones.
+    handAttackBlend+=(Number(comboActive)-handAttackBlend)*(1-Math.exp(-dt*10));
+    applyHandPlacement(handAttackBlend);
     // IMPORTANTE: não alterar dedos/punho após AnimationMixer.update().
     // Antes eram multiplicados a cada frame, acumulando torções e deformações.
     // As mãos continuam nas poses originais corretas dos clips importados.
