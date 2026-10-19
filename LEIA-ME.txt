@@ -1,21 +1,18 @@
-TIO URSO PATRULHA v0.8.1 — CORREÇÃO DO BRAÇO / MIRA
+Tio Urso: Patrulha — v0.8.2 (correção de braço na mira)
 
-Atualize: index.html e app.js (o terceiro arquivo é somente este texto).
-Não remova nenhum GLB ou style.css.
+Substitua index.html e app.js no GitHub.
+LEIA-ME.txt é opcional. Não apague os arquivos GLB nem style.css.
 
-O helicóptero era causado por multiplicações sucessivas de rotação do ombro.
-Esta versão substitui o acréscimo cumulativo por uma pose ABSOLUTA
-do ombro e antebraço, derivada uma vez da postura original do rig.
-Pistola MIRANDO mantém edição de posição e rotação XYZ no painel.
-Todas as seis calibrações aprovadas são preservadas no código e
-no armazenamento; apenas o ajuste de Mira não concluído é reiniciado.
+Mudanças:
+- Postura do ombro e antebraço calculada uma única vez no carregamento
+  a partir do esqueleto do personagem, nunca recalculada a cada quadro.
+- Mistura entre descanso e mira sem alterar as articulações das mãos/dedos.
+- Corrigido texto de versão do painel de mira.
+- Só ajuste Pistola • Mira liberado no modo ajuste.
+- Os seis encaixes anteriores continuam com valores fixos.
+- Pistola continua desabilitada para disparos fora do modo de teste.
 
-Abra no Android APÓS publicar:
-https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=081
-
-1. Iniciar patrulhamento. 2. Selecionar pistola.
-3. Preparar mira estável. 4. Observar se o braço para de girar.
-5. Só depois calibrar Pistola • Mira, e enviar os valores.
-
-Em caso de novo bug, retorne à v0.8.0; testes visuais no Android
-são necessários pois não é possível prever o comportamento exato do rig.
+Teste: em modo ajuste, equipe a pistola, prepare a mira e observe
+se o braço permanece na mesma postura por pelo menos 10 segundos.
+Se a postura ainda estiver inadequada, não ajuste a rotação da pistola
+para compensar o braço: primeiro será preciso afinar os ângulos dos ossos.

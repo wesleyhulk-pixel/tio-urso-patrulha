@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.8.2: postura de mira pré-calculada UMA VEZ com os ossos do GLB.
+// Sem solver dinâmico durante a mira; testes preservados.
+// v0.8.1: fixo de ombro e antebraço por POSE ABSOLUTA (sem acúmulo),
+// animações de origem intactas e só Mira calibrável.
 // v0.8.0: Mira estável: ombro em eixo LOCAL sem coordenadas mundiais,
 // apenas pistolaMira ajustável; seis calibrações confirmadas bloqueadas.
 // v0.7.9: pistola GLB texturizada no coldre e mão, estados descanso/mira,
@@ -81,6 +85,53 @@ let tonfaModel = null, rightHolster = null, actionEffect = null;
 let tonfaBeltSocket=null, tonfaHandSocket=null, tonfaAssetLoaded=false;
 let rightHandBone = null, hipBone = null;
 let rightUpperArm=null, rightForeArm=null;
+// Referências capturadas UMA ÚNICA VEZ em repouso. Nunca usar a pose já
+// modificada como ponto de partida no quadro seguinte.
+// Postura definitiva é calculada no carregamento, a partir do repouso original.
+// Nunca é recalculada dentro de update(), evitando realimentação do movimento.
+let aimRestUpper=null, aimRestForearm=null;
+let aimFixedUpper=null, aimFixedForearm=null;
+const aimArmAxis = new THREE.Vector3(0,1,0);
+const aimTargetLocalUpper = new THREE.Vector3(-.12,-.12,1).normalize();
+const aimTargetLocalFore = new THREE.Vector3(-.04,.015,1).normalize();
+const aimTmpParent = new THREE.Quaternion();
+const aimTmpDir = new THREE.Vector3();
+const aimTmpAxis = new THREE.Vector3();
+const aimTmpDelta = new THREE.Quaternion();
+const aimTmpCharacter = new THREE.Quaternion();
+
+// Alvo quaternion local a partir de um vetor fixo no espaço do PERSONAGEM.
+// O alvo NÃO depende do quadro anterior, da posição da câmera, nem da
+// animação de corrida/repouso. Uma vez calculado, nunca muda.
+function computeAimQuaternion(bone,rest,desiredInCharacter){
+  if(!bone || !rest)return null;
+  characterModel.getWorldQuaternion(aimTmpCharacter);
+  aimTmpDir.copy(desiredInCharacter).applyQuaternion(aimTmpCharacter);
+  bone.parent.getWorldQuaternion(aimTmpParent);
+  aimTmpDir.applyQuaternion(aimTmpParent.invert()).normalize();
+  // No rig exportado os filhos dos braços ficam ao longo de Y local.
+  // Ler a direção REAL do próximo osso protege contra um GLB diferente.
+  const child=bone.children.find(ch=>ch.isBone);
+  aimTmpAxis.copy(child && child.position.lengthSq()>1e-7 ? child.position : aimArmAxis)
+    .normalize().applyQuaternion(rest).normalize();
+  aimTmpDelta.setFromUnitVectors(aimTmpAxis,aimTmpDir);
+  return aimTmpDelta.multiply(rest).normalize().clone();
+}
+function prepareFixedAimPose(){
+  if(!rightUpperArm || !rightForeArm || !aimRestUpper || !aimRestForearm)return;
+  characterModel.updateWorldMatrix(true,true);
+  aimFixedUpper=computeAimQuaternion(rightUpperArm,aimRestUpper,aimTargetLocalUpper);
+  if(!aimFixedUpper)return;
+  // Atualizar apenas temporariamente para obter o referencial correto do cotovelo.
+  rightUpperArm.quaternion.copy(aimFixedUpper);
+  rightUpperArm.updateWorldMatrix(true,true);
+  aimFixedForearm=computeAimQuaternion(rightForeArm,aimRestForearm,aimTargetLocalFore);
+  // Restaura a pose original antes que o AnimationMixer comece a renderizar.
+  rightUpperArm.quaternion.copy(aimRestUpper);
+  rightForeArm.quaternion.copy(aimRestForearm);
+  characterModel.updateWorldMatrix(true,true);
+  console.info('v0.8.2: pose FIXA de mira criada uma única vez; sem giro por frame.');
+}
 let pistolModel=null, pistolAssetLoaded=false;
 let pistolHolsterSocket=null, pistolHandSocket=null;
 let aiming=false, aimBlend=0, lastAimCheck=0;
@@ -412,7 +463,7 @@ const HAND_TONFA_ATTACK = Object.freeze({x:-.15, y:.075, z:-.008, rx:0, ry:5, rz
 const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v076';
 const ACCESSORY_NAMES = ['tonfa','coldre','maoDescanso','maoAtaque'];
 // Separado do armazenamento das quatro calibrações anteriores.
-const PISTOL_ADJUST_KEY='tio-urso-mira-v080';
+const PISTOL_ADJUST_KEY='tio-urso-mira-v082';
 const PISTOL_NAMES=['pistolaNoColdre','pistolaDescanso','pistolaMira'];
 // Os DOIS ajustes de pistola já aprovados pelo jogador não podem ser
 // alterados no painel. A mira NÃO reutiliza o valor antigo (bug helicóptero).
@@ -565,6 +616,12 @@ function attachTonfaToRig(){
     return false;
   }
   tonfaAttachedToHand=true;
+  // A pose absoluta de mira parte da postura de descanso do próprio rig.
+  // animationMixer.update(0) aplica o idle uma vez, sem mover as animações.
+  if(animationMixer)animationMixer.update(0);
+  aimRestUpper=rightUpperArm?.quaternion.clone() || null;
+  aimRestForearm=rightForeArm?.quaternion.clone() || null;
+  prepareFixedAimPose();
   // Antes, os suportes eram filhos de characterModel; o GLB anima os ossos
   // Hips.position, deixando coldre/tonfa parados enquanto o corpo se move.
   // Mantemos os valores aprovados no referencial ORIGINAL do personagem.
@@ -719,7 +776,7 @@ function enableAccessoryCalibration(){
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(256px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-      <b>AJUSTE DA MIRA · 0.8.0</b>
+      <b>AJUSTE DA MIRA · 0.8.2</b>
       <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
     </div>
     <div id="cal-body">
@@ -1009,6 +1066,20 @@ function interact(){
   notify(`${c.name}: Obrigado pela atenção!  +40 XP`,3200);
   if(talked.size===3)setTimeout(()=>notify('MISSÃO CONCLUÍDA! 🏅 Bastão tonfa liberado no equipamento.',4700),3100);
 }
+// Pose alvo precomputada: interpolação determinística entre a animação-base
+// e os dois quaternions fixos. Não lê a orientação do próprio braço para
+// recalcular outra rotação (causa de oscilação/"helicóptero").
+function applyStableFirearmAimPose(blend){
+  if(!(FIREARM_TEST_MODE && equipped==='arma' && aimFixedUpper &&
+    aimFixedForearm && rightUpperArm && rightForeArm))return;
+  const weight=THREE.MathUtils.clamp(blend,0,1);
+  if(weight<=.0001)return;
+  // AnimationMixer acabou de atualizar: este é o estado-base do quadro.
+  // Aplicar APENAS uma slerp direta ao destino FIXO em cada osso.
+  rightUpperArm.quaternion.slerp(aimFixedUpper,weight).normalize();
+  rightForeArm.quaternion.slerp(aimFixedForearm,weight).normalize();
+}
+
 function update(dt){
   let vx=joyX,vy=joyY;
   if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))vx-=1;
@@ -1069,14 +1140,9 @@ function update(dt){
     runAnim.timeScale=THREE.MathUtils.clamp(speed/RUN_SPEED,.65,1.35);
     animationMixer.update(dt);
     aimBlend+=(Number(aiming&&equipped==='arma')-aimBlend)*(1-Math.exp(-dt*11));
-    // Mira estabilizada: animações originais redefinem o osso a cada frame;
-    // o ajuste é aplicado uma única vez no espaço LOCAL do RightArm.
-    // Não consultar quaternions mundiais nem multiplicar a rotação do jogador.
-    if(rightUpperArm && aimBlend>.001){
-      const stableRaise=new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(1,0,0), 0.92*aimBlend);
-      rightUpperArm.quaternion.multiply(stableRaise).normalize();
-    }
+    // v0.8.2: nenhuma rotação calculada por frame. Apenas aplicar pose
+    // fixa gerada uma vez no carregamento do rig (sem oscilações).
+    applyStableFirearmAimPose(aimBlend);
     applyPistolPlacement();
     // Blend only the accessory's relative socket transform, never the finger bones.
     handAttackBlend+=(Number(comboActive)-handAttackBlend)*(1-Math.exp(-dt*10));
