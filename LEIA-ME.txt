@@ -1,36 +1,23 @@
-TIO URSO: PATRULHA — v0.8.9 · PAISAGEM / TELA CHEIA
+TIO URSO: PATRULHA — v0.9.0 — MAPA INICIAL (REGIÃO CENTRAL)
 
-AJUSTES PRESERVADOS:
-- Cruz da mira: x = -15, y = -40 (novo padrao, versao 089).
-- Pata nas costas: x=0, y=-0.08, z=0, rx=-10, ry=0, rz=0, escala=1.
-- Todos os encaixes aprovados da tonfa, do coldre e da pistola,
-  caminhada, corrida, ataques, sons, missoes e XP: sem alteracoes.
+INSTALAÇÃO NO GITHUB PELO CELULAR
+Envie / substitua SOMENTE index.html, app.js e LEIA-ME.txt.
+Os demais arquivos (GLBs, CSS, mp3, manifest e ícones) precisam permanecer
+no repositório. Não é necessário reenviar modelos nem áudio.
 
-ARQUIVOS PARA ENVIAR AO GITHUB (6 ARQUIVOS, SEM PASTAS):
-index.html, app.js, manifest.webmanifest, icon-192.png, icon-512.png, LEIA-ME.txt
+MAPA v0.9.0 — MODELAGEM ESQUEMÁTICA
+O jogador aparece em frente à Central da Guarda Municipal — Rua Eurilemos, 530.
+Inclui trechos ilustrativos da Av. Arapongas, Rua Eurilemos, Rua Flamingos,
+Rua Falcão e Rua Drongo; Praça da Matriz com igreja e coreto; Central da Guarda,
+estacionamento, Correios, Secretaria da Educação, Receita Estadual e Donald's Lanches.
+Também há acesso visual aos fundos dos Correios e comércio genérico.
 
-NAO apague: style.css, tio-urso.glb, tonfa.glb, coldre.glb,
-pistola.glb, passos-calcada.mp3, ambiente-rua.mp3, ambiente-pessoas.mp3,
-efeitos.mp3 e quaisquer outros modelos/sons anteriores.
+IMPORTANTE: isto NÃO é réplica fiel/georreferenciada da cidade. Ruas, prédios,
+orientação relativa e dimensões estão dispostos provisoriamente para testar a
+primeira área sem sobrecarregar o celular. Para reconstruir o traçado correto,
+precisaremos confrontar o mapa aéreo e/ou dados cartográficos oficiais.
 
-COMO FUNCIONA:
-- Ao tocar em INICIAR PATRULHAMENTO pelo navegador, o jogo solicita
-  tela cheia e tenta orientar automaticamente para horizontal.
-- No Chrome Android, isso DEPENDE do aparelho, das permissoes,
-  do navegador e do bloqueio da orientacao no sistema. Nao ha garantia
-  de girar a tela assim que abrir um link sem qualquer toque do usuario.
-- Quando instalado como app (PWA), o arquivo manifest.webmanifest
-  declara orientacao landscape e modo fullscreen, para abrir em paisagem
-  automaticamente quando o sistema/browser permitir.
-- Se a orientacao nao puder ser bloqueada, habilite Rotacao automatica
-  no Android e gire o telefone. A tela de orientacao permite continuar.
+PRESERVADO: GLBs e texturas de Tio Urso, tonfa, coldre, pistola; câmera;
+pista de áudio, pegada, mira, marca da pata; animações, equipamentos e XP.
 
-INSTALACAO NO ANDROID:
-Abra pelo Chrome:
-https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=089
-Em menu ⋮ > Instalar app (ou Adicionar à tela inicial).
-Se ja existia atalho antigo do jogo, pode ser necessario remover e
-instalar novamente para o novo manifesto/orientacao serem aplicados.
-
-OBSERVACAO: ao clicar no botao de tela cheia (⛶), o jogo tambem solicita
-paisagem, sem forcar a saida do modo paisagem quando voltar ao normal.
+Link do jogo após atualizar: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=090

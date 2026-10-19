@@ -1,3 +1,6 @@
+// v0.9.0: mapa inicial da Central da Guarda e Praça da Matriz, geometria provisória
+// para teste em celular. Traçado de quadras e edifícios ilustrativo até
+// conferência com vista aérea. Preserva mecânicas, controles e GLBs anteriores.
 // v0.8.9: orientacao paisagem ao iniciar via fullscreen + Screen Orientation API;
 // manifest PWA pede paisagem na abertura do app instalado. Mira X:-15 Y:-40 fixa.
 // v0.8.8: calibração APENAS da cruz na tela; pata das costas aprovada
@@ -61,6 +64,16 @@ const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
 const LIMIT = 48;
+// A configuração abaixo permite ajustar o mapa depois com a foto aérea.
+// As coordenadas são LOCAIS ao jogo, não latitudes/longitudes reais.
+const MAPA_VERSAO = "CENTRO · MATRIZ / CENTRAL — ESQUEMA v0.9.0";
+const MAPA_RUAS = [
+  {nome:"Rua Eurilemos", eixo:"z", pos:0, largura:7.6},
+  {nome:"Rua Falcão", eixo:"z", pos:-39, largura:7.0},
+  {nome:"Rua Drongo", eixo:"z", pos:39, largura:7.0},
+  {nome:"Av. Arapongas", eixo:"x", pos:29, largura:9.2},
+  {nome:"Rua Flamingos", eixo:"x", pos:-30, largura:7.0}
+];
 
 const el = id => document.getElementById(id);
 // Retícula: ajuste VISUAL independente da posição/rotação da arma e da câmera.
@@ -90,7 +103,7 @@ function enableReticleCalibration(){
   panel.setAttribute('aria-label','Ajuste fino exclusivo da cruz de mira');
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(290px,60vw);max-height:72vh;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:#071b2df2;border:1px solid #ffce63;color:white;border-radius:12px;padding:10px;box-shadow:0 6px 22px #0009;font:12px system-ui;';
   panel.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.8.9</strong><button id="reticle-toggle" type="button">−</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>🎯 CRUZ DE MIRA · v0.9.0</strong><button id="reticle-toggle" type="button">−</button></div>
     <div id="reticle-body">
       <p style="font-size:11px;line-height:1.45;color:#dfebfa;margin:8px 0">Movimente a CRUZ na tela. O braço e os equipamentos calibrados não serão alterados.</p>
       <div id="reticle-values" style="padding:8px;background:#18354b;border-radius:7px;text-align:center;font-weight:700" aria-live="polite"></div>
@@ -380,7 +393,9 @@ const AUTO_RUN_ON_PRESSURE = 0.88;
 const AUTO_RUN_OFF_FORWARD = 0.67;
 const AUTO_RUN_OFF_PRESSURE = 0.75;
 const camPosWanted = new THREE.Vector3();
-const playerPos = new THREE.Vector3(0,0,-13);
+// Spawn real narrativo: calçada diante da Central, R. Eurilemos, 530.
+// Coordenadas de jogo provisórias, até aferir a quadra por imagem aérea.
+const playerPos = new THREE.Vector3(-5.25,0,-6.5);
 const targetPos = new THREE.Vector3();
 const motion = new THREE.Vector3();
 const forward = new THREE.Vector3();
@@ -1464,6 +1479,189 @@ function makePawBadge(){
   applyPawAdjustments();
 }
 
+
+// ---------------------------------------------------------------------------
+// MAPA v0.9.0 - QUADRA DA MATRIZ / CENTRAL DA GUARDA
+// Referências: fotos enviadas pelo usuário. POSIÇÕES/PROPORÇÕES SÃO PROVISÓRIAS.
+// Início da partida na Rua Eurilemos, 530; Rouxinol NÃO é ponto inicial.
+// ---------------------------------------------------------------------------
+const mapLandmarks=[];
+function cityBlock(x,z,w,d,height,color,title,face='east'){
+  // Objeto retangular de baixo polígono: posteriormente substituível por GLB.
+  const root=new THREE.Group(); root.position.set(x,0,z);scene.add(root);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,height,d),standard(color,.83));
+  m.position.y=height/2; m.castShadow=true; m.receiveShadow=true;root.add(m);
+  const trim=new THREE.Mesh(new THREE.BoxGeometry(w+.18,.19,d+.18),standard(0xcfd6d5));
+  trim.position.y=height+.07;trim.castShadow=true;root.add(trim);
+  const direction=face==='east'?'x':face==='west'?'x':'z';
+  const sign=labelSprite(title,'#f7f9ff','#15304a',Math.min(5.8,Math.max(2.4,title.length*.15)),.46);
+  sign.position.set(direction==='x'?(face==='east'?w/2+.25:-w/2-.25):0,Math.min(height-.55,2.6),direction==='z'?(face==='south'?d/2+.25:-d/2-.25):0);
+  root.add(sign);mapLandmarks.push({title,x,z});
+  const windows=standard(0x9fc2c8,.24);
+  const frontSide=face==='east'?1:face==='west'?-1:face==='south'?1:-1;
+  for(let k=1;k<Math.max(2,Math.floor(height/1.6));k++){
+    const yy=1.2+k*1.1;
+    if(yy>height-.45)continue;
+    for(let pos=-((direction==='x'?d:w)/2)+1.25;pos<(direction==='x'?d:w)/2-.6;pos+=2.3){
+      const win=new THREE.Mesh(new THREE.PlaneGeometry(.85,.72),windows);
+      if(direction==='x'){
+        win.rotation.y=frontSide*Math.PI/2;
+        win.position.set(frontSide*(w/2+.015),yy,pos);
+      }else{
+        win.rotation.y=frontSide===1?0:Math.PI;
+        win.position.set(pos,yy,frontSide*(d/2+.015));
+      }
+      root.add(win);
+    }
+  }
+  obstacles.push({x1:x-w/2-.28,x2:x+w/2+.28,z1:z-d/2-.28,z2:z+d/2+.28});
+  return root;
+}
+function townPaving(x,z,w,d,color=0xc7bdb0,y=.065){
+  const slab=box(w,.055,d,color,x,y,z);slab.receiveShadow=true;return slab;
+}
+function townLine(x,z,w,d,color=0xf5eed8){return box(w,.018,d,color,x,.073,z);}
+function paveCrosswalk(x,z,vertical=false){
+  // O jogador atravessa estas faixas; nenhuma delas possui colisão.
+  for(let i=-3;i<=3;i++){
+    if(vertical)townLine(x+i*.8,z, .48,4.8);
+    else townLine(x,z+i*.8,4.8,.48);
+  }
+}
+function simpleLight(x,z){
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(.035,.06,4.2,7),standard(0x526371));
+  pole.position.set(x,2.1,z);scene.add(pole);
+  const light=new THREE.Mesh(new THREE.SphereGeometry(.16,8,8),standard(0xffe8ba,.34));
+  light.position.set(x,4.18,z);scene.add(light);
+}
+function townBench(x,z,angle=0){
+  const b=new THREE.Group();b.position.set(x,0,z);b.rotation.y=angle;
+  const wood=standard(0x855437);const iron=standard(0x303842);
+  const seat=new THREE.Mesh(new THREE.BoxGeometry(1.55,.15,.5),wood);seat.position.y=.47;b.add(seat);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(1.55,.56,.12),wood);back.position.set(0,.79,-.24);b.add(back);
+  for(let t of [-.57,.57]){
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(.1,.5,.1),iron);leg.position.set(t,.23,0);b.add(leg);
+  }
+  scene.add(b);
+}
+function buildChurch(){
+  // Volume inspirado na Matriz: NÃO é réplica arquitetônica da igreja real.
+  const x=18.2,z=11.0;
+  const facade=cityBlock(x,z,11.2,12.5,7.5,0xd6d9d5,'IGREJA MATRIZ','south');
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(8.4,2.9,4),standard(0x686b78));
+  roof.rotation.y=Math.PI/4;roof.scale.z=1.13;roof.position.set(0,8.95,0);facade.add(roof);
+  const tower=new THREE.Mesh(new THREE.BoxGeometry(2.9,12.6,3.2),standard(0xe7e3dd));
+  tower.position.set(-3.7,6.3,-1.4);facade.add(tower);tower.castShadow=true;
+  const belfry=new THREE.Mesh(new THREE.ConeGeometry(2.4,3.2,4),standard(0x747881));
+  belfry.rotation.y=Math.PI/4;belfry.position.set(-3.7,14.1,-1.4);facade.add(belfry);
+  const crossMat=standard(0xe9c973,.4);
+  const v=new THREE.Mesh(new THREE.BoxGeometry(.20,2,.20),crossMat);v.position.set(-3.7,16.55,-1.4);facade.add(v);
+  const h=new THREE.Mesh(new THREE.BoxGeometry(1.2,.20,.20),crossMat);h.position.set(-3.7,16.9,-1.4);facade.add(h);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(2.25,3.1,.15),standard(0x765847));
+  door.position.set(0,1.55,6.35);facade.add(door);
+  // Pequenas escadarias na entrada.
+  for(let i=0;i<3;i++){
+    const step=new THREE.Mesh(new THREE.BoxGeometry(3.6,.16,1),standard(0xb2b7b5));
+    step.position.set(0,.08+i*.13,6.9+i*.62);facade.add(step);
+  }
+}
+function buildGazebo(){
+  const gazebo=new THREE.Group();gazebo.position.set(29,-0.0,-9);scene.add(gazebo);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(3.0,3.0,.38,8),standard(0xc8c3b2));
+  base.position.y=.19;gazebo.add(base);base.receiveShadow=true;
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(.10,.12,3.0,6),standard(0xf7f4e8));
+    post.position.set(Math.cos(a)*2.55,1.88,Math.sin(a)*2.55);gazebo.add(post);
+  }
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(3.55,2.1,8),standard(0x536d75));
+  roof.position.y=4.37;roof.castShadow=true;gazebo.add(roof);
+  const sign=labelSprite('CORETO','#ffffff','#174157',1.9,.42);sign.position.set(0,4.65,0);// Etiqueta fica sobre o coreto e não na origem da cena.
+  scene.add(sign);sign.position.set(29,4.95,-9);
+  mapLandmarks.push({title:'Coreto',x:29,z:-9});
+}
+function buildDowntownMap(){
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(125,125),standard(0x8da77e));
+  floor.rotation.x=-Math.PI/2;floor.position.y=-.018;floor.receiveShadow=true;scene.add(floor);
+  // Ruas LOCAIS organizadas como esquema de circulação; não são extração GIS.
+  for(const st of MAPA_RUAS){
+    if(st.eixo==='z')road(st.pos,0,st.largura,103);
+    else road(0,st.pos,103,st.largura);
+  }
+  // Duas calçadas contínuas em cada rua. Larguras aproximadas de jogo.
+  for(const st of MAPA_RUAS){
+    const out=st.largura/2+1.30;
+    for(const side of [-1,1]){
+      if(st.eixo==='z')townPaving(st.pos+side*out,0,2.5,101,0xcec9bb,.055);
+      else townPaving(0,st.pos+side*out,101,2.5,0xcec9bb,.055);
+    }
+  }
+  // Eixos centrais pintados nas vias.
+  for(const st of MAPA_RUAS){
+    for(let d=-46;d<46;d+=7.5){
+      if(st.eixo==='z')townLine(st.pos,d,.10,3.1,0xd8c88d);
+      else townLine(d,st.pos,3.1,.10,0xd8c88d);
+    }
+  }
+  for(const z of [29,-30])paveCrosswalk(0,z,false);
+  for(const x of [-39,39])paveCrosswalk(x,29,true);
+  // A Praça da Matriz ocupa o miolo entre Eurilemos e Drongo neste protótipo.
+  townPaving(20.2,-.5,29.2,42.0,0xd4ccb9,.08);
+  townPaving(20.2,-.5,2.4,42.0,0xbab3a0,.113);
+  townPaving(20.2,-.5,29.2,2.1,0xbab3a0,.115);
+  // Pequeno canteiro verde e mobiliário da praça.
+  for(const [x,z] of [[9,-13],[12,-7],[12,0],[29,1],[29,13],[10,18]]){
+    const soil=box(2.4,.06,2.4,0x749a65,x,.118,z); soil.receiveShadow=true;
+    tree(x,z);
+  }
+  for(const [x,z,r] of [[14,-12,0],[25,16,Math.PI],[9,7,Math.PI/2],[30,6,-Math.PI/2]])townBench(x,z,r);
+  buildChurch();buildGazebo();
+  const plazaSign=labelSprite('PRAÇA DA MATRIZ','#ffffff','#456d56',3.7,.58);
+  plazaSign.position.set(19,3,-17.5);scene.add(plazaSign);
+  // Quadra administrativa, a oeste da Rua Eurilemos.
+  const central=cityBlock(-15.2,-6.7,13.5,10.0,5.3,0xb7c6c9,'CENTRAL DA GUARDA','east');
+  const blueBand=new THREE.Mesh(new THREE.BoxGeometry(.09,.72,13),standard(0x234b72));
+  blueBand.rotation.y=Math.PI/2;blueBand.position.set(6.85,4.5,0);central.add(blueBand);
+  const mainDoor=new THREE.Mesh(new THREE.BoxGeometry(.1,2.75,2.2),standard(0x345769,.34));
+  mainDoor.position.set(6.79,1.4,0);central.add(mainDoor);
+  const frontSign=labelSprite('GUARDA MUNICIPAL','#ffffff','#18416a',3.6,.48);
+  frontSign.position.set(-7.60,3.4,-6.7);scene.add(frontSign);
+  // Jogador inicia diante da entrada, na calçada da Rua Eurilemos.
+  const startMark=new THREE.Mesh(new THREE.RingGeometry(.48,.62,24),new THREE.MeshBasicMaterial({color:0x72e1ad,side:THREE.DoubleSide}));
+  startMark.rotation.x=-Math.PI/2;startMark.position.set(playerPos.x,.095,playerPos.z);scene.add(startMark);
+  const spawnSign=labelSprite('INÍCIO DO PLANTÃO','#ffffff','#12644f',3.25,.49);
+  spawnSign.position.set(-5.9,2.35,-6.7);scene.add(spawnSign);
+  mapLandmarks.push({title:'Spawn — Rua Eurilemos, 530',x:playerPos.x,z:playerPos.z});
+  // Estacionamento frontal/lateral, com acesso voltado para a via.
+  townPaving(-14.7,-23.0,17,10,0x7b8586,.063);
+  for(let x=-21;x<=-9;x+=3)townLine(x,-23,.1,5.6,0xf1efe5);
+  townPaving(-7.8,-22.9,3.5,5.0,0xa7aaa5,.078);
+  const parkingSign=labelSprite('ESTACIONAMENTO GMA','#ffffff','#164264',3.65,.45);
+  parkingSign.position.set(-12,2.7,-27.3);scene.add(parkingSign);
+  mapLandmarks.push({title:'Estacionamento GM',x:-15,z:-23});
+  cityBlock(-28,-5.6,10.4,11.5,6.8,0x8aafc3,'SECRETARIA DE EDUCAÇÃO','south');
+  cityBlock(-19.5,13.4,14.2,9.6,5.4,0xdadfe5,'CORREIOS','east');
+  cityBlock(-29.7,-20.9,10.2,8.3,5.2,0xd8d0c3,'RECEITA ESTADUAL','south');
+  cityBlock(-30.5,5.0,9.2,7.4,3.6,0xe9cbb1,"DONALD'S LANCHES",'west');
+  // Área de carga/descarga dos Correios: apenas ambientação, sem acesso funcional.
+  townPaving(-30.2,14,4.6,7.0,0x9c9b92,.065);
+  townLine(-30.2,14,.15,5.9,0xe8d5a5);
+  const truckSign=labelSprite('SERVIÇO • CORREIOS','#fefefe','#39556b',3.3,.42);
+  truckSign.position.set(-30,2.3,19.8);scene.add(truckSign);
+  mapLandmarks.push({title:'Fundos dos Correios',x:-30,z:14});
+  // Algumas fachadas genéricas adicionais. Sem marcas nem ocupantes inventados.
+  cityBlock(-21.0,41.4,13,8.0,5.7,0xdbd3c0,'COMÉRCIO','south');
+  cityBlock(13.5,41.5,10.0,8.0,5.5,0xb8a8a0,'COMÉRCIO','south');
+  cityBlock(27.0,-41.4,13.5,7.4,4.3,0xbec5b4,'SERVIÇOS','north');
+  cityBlock(-20.0,-42.0,15,7.4,4.4,0xcfc6b9,'COMÉRCIO','north');
+  // Iluminação estática simples para poupar chamadas de desenho no Android.
+  for(const [x,z] of [[-5.1,18],[-5.1,-19],[5.1,22],[34,16],[34,-18],[-34,20],[-34,-19]])simpleLight(x,z);
+  // Distribuição de cidadãos na mesma missão original de 3 conversas.
+  makeCitizen('Dona Maria',-5.15,7.5,0x52a47d,'maria');
+  makeCitizen('Sr. Carlos',7.0,-11.5,0xe1ad6d,'carlos');
+  makeCitizen('Ana',-5.25,20,0x7b94cc,'ana');
+}
+
 function buildScene(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x91c8e1);scene.fog=new THREE.Fog(0x91c8e1,34,92);
   camera=new THREE.PerspectiveCamera(64,1,.1,180);
@@ -1485,34 +1683,7 @@ function buildScene(){
   sunLight.shadow.bias=-.00018;sunLight.shadow.normalBias=.025;
   sunLight.shadow.radius=2;
   scene.add(sunLight);scene.add(sunLight.target);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(125,125),standard(0x779b78));floor.rotation.x=-Math.PI/2;floor.position.y=-.018;floor.receiveShadow=true;scene.add(floor);
-  road(0,0,7.8,111);road(0,13.5,111,7.5);road(0,-29,111,6.5);
-  for(const x of [-5.1,5.1]){const walk=box(2.4,.05,111,0xc7c4b7,x,.06,0);walk.receiveShadow=true;}
-  // Centro de faixa da rua e marcações de pedestres.
-  for(let z=-51;z<=52;z+=5)box(.13,.03,2.15,0xeae2a7,0,.055,z);
-  for(let x=-3.6;x<=3.6;x+=1.03)box(.5,.026,1.45,0xe5ded1,x,.058,7.9);
-  for(let i=-3;i<=3;i++)box(.12,.025,3.2,0xeae2a7,i*4,.05,13.5);
-  for(let z=-44;z<=48;z+=14){
-    if(Math.abs(z-13.5)<8||Math.abs(z+29)<7)continue;
-    for(let side of [-1,1]){
-      let x=side*(12.5+(Math.abs(z)%5)*.45);
-      addBuilding(x,z,6.4,8.4,4.5+(Math.abs(z*13)%5),[0xd6bc9a,0xa5b9bf,0xe5cbad,0xb6a9aa][Math.abs(z)%4]);
-    }
-  }
-  addBuilding(-12,-13,6.6,7.2,4.3,0x91a6bf,'CENTRAL OPERACIONAL');
-  addBuilding(12,-13,6.7,7.2,6.2,0xe8d9b6,'PRAÇA / MATRIZ');
-  for(let z=-48;z<49;z+=9){tree(-6.6,z+1);tree(6.6,z-1);}
-  for(let i=0;i<10;i++){
-    const side = i%2===0?1:-1;
-    const z=-40+i*9;
-    const streetLamp=new THREE.Group();
-    const pole=new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,4.1,8),standard(0x4c5f6b));pole.position.y=2.05;streetLamp.add(pole);
-    const light=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),standard(0xffebaa));light.position.set(side*.45,4.08,0);streetLamp.add(light);
-    streetLamp.position.set(side*6.8,0,z);scene.add(streetLamp);
-  }
-  makeCitizen('Dona Maria',4.7,-3.5,0x52a47d,'maria');
-  makeCitizen('Sr. Carlos',-4.7,3.8,0xe1ad6d,'carlos');
-  makeCitizen('Ana',4.7,23.5,0x7b94cc,'ana');
+  buildDowntownMap();
   player=new THREE.Group();player.position.copy(playerPos);player.position.y=GROUND_Y;scene.add(player);
   createGroundShadow();makeAttackEffect();makeTonfa();
   clock=new THREE.Clock();
@@ -1749,16 +1920,32 @@ function update(dt){
   if(performance.now()>toastUntil)el('toast').classList.remove('show');
 }
 function drawMap(){
-  const c=miniCtx,w=mini.width,h=mini.height;c.clearRect(0,0,w,h);
-  c.fillStyle='#6a927c';c.fillRect(0,0,w,h);
-  // Minimapa em torno do personagem, sem correspondência cartográfica real.
-  const s=1.9,px=player.position.x,pz=player.position.z;
+  const c=miniCtx,w=mini.width,h=mini.height;
+  c.clearRect(0,0,w,h);c.fillStyle='#8ca483';c.fillRect(0,0,w,h);
+  const s=2.2,px=player.position.x,pz=player.position.z;
   const mx=x=>w/2+(x-px)*s, my=z=>h/2-(z-pz)*s;
-  c.fillStyle='#46515d';c.fillRect(mx(-3.9),0,7.8*s,h);
-  c.fillRect(0,my(17.25),w,7.5*s);c.fillRect(0,my(-25.75),w,6.5*s);
-  c.strokeStyle='#ebd5a3';c.setLineDash([7,8]);c.lineWidth=1.4;c.beginPath();c.moveTo(mx(0),0);c.lineTo(mx(0),h);c.stroke();c.setLineDash([]);
-  for(const n of citizenNodes){const x=mx(n.citizen.position.x),y=my(n.citizen.position.z);if(x<-5||x>w+5||y<-5||y>h+5)continue;c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fillStyle=talked.has(n.id)?'#70dba1':'#f7d652';c.fill();}
-  c.save();c.translate(w/2,h/2);c.rotate(-player.rotation.y);c.fillStyle='#ffffff';c.strokeStyle='#133249';c.lineWidth=2;c.beginPath();c.moveTo(0,-10);c.lineTo(-7,8);c.lineTo(7,8);c.closePath();c.fill();c.stroke();c.restore();
+  // Desenha a mesma malha ESQUEMÁTICA usada no cenário, sem GPS real.
+  for(const st of MAPA_RUAS){
+    c.fillStyle='#45525c';
+    if(st.eixo==='z')c.fillRect(mx(st.pos-st.largura/2),0,st.largura*s,h);
+    else c.fillRect(0,my(st.pos+st.largura/2),w,st.largura*s);
+    c.strokeStyle='#e6d5a3';c.lineWidth=1;c.setLineDash([4,6]);c.beginPath();
+    if(st.eixo==='z'){c.moveTo(mx(st.pos),0);c.lineTo(mx(st.pos),h);}
+    else{c.moveTo(0,my(st.pos));c.lineTo(w,my(st.pos));}
+    c.stroke();c.setLineDash([]);
+  }
+  c.fillStyle='#c5b68d';c.fillRect(mx(6.2),my(20.5),29.0*s,41.5*s);
+  for(const p of mapLandmarks){
+    const x=mx(p.x),y=my(p.z);if(x<0||y<0||x>w||y>h)continue;
+    c.beginPath();c.arc(x,y,3.6,0,Math.PI*2);
+    c.fillStyle=p.title.includes('Guarda')||p.title.includes('Spawn')?'#4cffb9':'#ffe498';c.fill();
+  }
+  for(const n of citizenNodes){const x=mx(n.citizen.position.x),y=my(n.citizen.position.z);
+    if(x<-5||x>w+5||y<-5||y>h+5)continue;
+    c.beginPath();c.arc(x,y,4.5,0,Math.PI*2);c.fillStyle=talked.has(n.id)?'#70dba1':'#f7d652';c.fill();
+  }
+  c.save();c.translate(w/2,h/2);c.rotate(-player.rotation.y);c.fillStyle='#fff';
+  c.strokeStyle='#163349';c.lineWidth=2;c.beginPath();c.moveTo(0,-9);c.lineTo(-6,7);c.lineTo(6,7);c.closePath();c.fill();c.stroke();c.restore();
 }
 function loop(){
   requestAnimationFrame(loop);
