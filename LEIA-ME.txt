@@ -1,37 +1,32 @@
-TIO URSO: PATRULHA — v0.7.5 | AJUSTES FIXADOS E PEGADA POR ESTADO
+TIO URSO: PATRULHA — v0.7.7
+CORREÇÃO: COLDRE E TONFA GUARDADA SEGUEM O PERSONAGEM
 
-Substitua no GitHub apenas index.html e app.js. NÃO envie GLBs novamente.
-Não apague tio-urso.glb, tonfa.glb, coldre.glb nem style.css.
+Problema encontrado: os itens guardados estavam ligados à raiz do GLB,
+enquanto a animação de caminhada/corrida/ataque desloca os ossos do corpo.
+Durante certos movimentos, o Tio Urso se separava visualmente dos itens.
 
-PADRÕES VALIDADOS PELO USUÁRIO (posição em unidades GLB / rotação em GRAUS):
-Tonfa no cinto esquerdo: X 0.225 Y 0.815 Z 0.075 RX 11.15 RY 1.56 RZ 8.12
-Coldre no lado direito: X -0.25 Y 0.855 Z -0.02 RX 1.72 RY -95.31 RZ -4.58
+Correção: o encaixe do coldre e o encaixe da tonfa guardada agora são
+filhos do osso Hips, com conversão da calibração original para o espaço
+do quadril. Assim, os equipamentos acompanham os movimentos do corpo,
+sem perder os valores de posição/rotação aprovados no celular.
 
-4 OPÇÕES DO PAINEL DE AJUSTE:
-- Tonfa guardada no cinto (padrão já fixado acima)
-- Coldre no lado direito (padrão já fixado acima)
-- Tonfa na mão em descanso
-- Tonfa na mão em ataque
+CALIBRAÇÕES MANTIDAS:
+Tonfa guardada: x=.225 y=.815 z=.075 rx=11.15 ry=1.56 rz=8.12
+Coldre: x=-.25 y=.855 z=-.02 rx=1.72 ry=-95.31 rz=-4.58
+Tonfa mão repouso: x=0 y=-.075 z=-.058 rx=0 ry=-40 rz=0
+Tonfa mão ataque: x=-.15 y=.075 z=-.008 rx=0 ry=5 rz=-110
 
-Os dois encaixes da mão começam com os mesmos valores da v0.7.4
-para não alterar o que já funcionava. Você calibra o descanso e ataque
-separadamente, ao vivo, pelo celular. As mudanças são gravadas no navegador.
-O botão 'Congelar pose de ataque' só funciona após iniciar o jogo com a
-tonfa equipada; permite calibrar o estado de ataque com a pose congelada.
-O jogo interpola suavemente os dois ajustes durante o combo.
-Não modifica os ossos dos dedos nem o modelo do Tio Urso.
-
-COMO ATUALIZAR:
+ATUALIZAÇÃO NO GITHUB (PELO CELULAR)
 1. Extraia este ZIP.
-2. Envie index.html e app.js ao repositório já existente.
-3. Confirme Commit changes e aguarde GitHub Pages.
-4. Acesse https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?ajuste=1&v=075
-5. Inicie o jogo, equipe a tonfa e selecione o estado que deseja calibrar.
-6. Para calibrar ataque, toque em 'Congelar pose de ataque' e, ao terminar,
-   toque de novo para liberar; 'Copiar meus 4 ajustes' exporta o JSON.
+2. Substitua SOMENTE index.html e app.js na raiz do repositório.
+3. Confirme em Commit changes.
+4. Quando concluir o deploy, abra:
+   https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=077
+5. Teste parada, caminhada, corrida, com tonfa guardada/equipada e combo.
 
-Pontos importantes:
-- Se o mesmo celular tiver ajustes anteriores salvos, eles são importados.
-- A rotação usa graus, convertidos para radianos ao desenhar.
-- O modelo do coldre e a tonfa são mantidos texturizados.
-- Teste no celular antes de considerar o encaixe visual definitivo.
+NÃO APAGUE ou reenvie tio-urso.glb, tonfa.glb, coldre.glb ou style.css.
+As texturas e o progresso das missões são mantidos.
+Ajustes salvos na chave tio-urso-acessorios-v076 são preservados.
+Modo de ajuste opcional: ?ajuste=1&v=077
+
+OBS: Arquivo JS validado em sintaxe; requer confirmação visual no Android.

@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// v0.7.7: encaixes do cinto seguem o osso Hips animado, mantendo as calibrações.
+// v0.7.6: calibrações confirmadas pelo usuário para os QUATRO encaixes.
+// Novos padrões e armazenamento próprio: não importar automaticamente ajustes
+// antigos para que eles não substituam as quatro posições aprovadas.
 // v0.7.5: calibrações fornecidas pelo usuário fixadas nos padrões do cinto;
 // ajuste adicional de tonfa na mão em DESCANSO e no ATAQUE (independentes).
 // Preserva rig, GLBs texturizados e controles da v0.7.4.
@@ -64,6 +68,9 @@ let equipped = 'punhos';
 let tonfaModel = null, rightHolster = null, actionEffect = null;
 let tonfaBeltSocket=null, tonfaHandSocket=null, tonfaAssetLoaded=false;
 let rightHandBone = null, hipBone = null;
+// Matriz de referência: coordenadas dos ajustes v0.7.6 no espaço do personagem
+// convertidas para o sistema do quadril ANTES das animações. Não recalcular por frame.
+let hipsReferenceInverse = null;
 // A pose dos dedos e punho fica 100% com o AnimationMixer original:
 // manipulações multiplicativas de quaternion acumulavam torções ao longo dos frames.
 
@@ -357,12 +364,14 @@ const BELT_TONFA = Object.freeze({x:.225, y:.815, z:.075, rx:11.15, ry:1.56, rz:
 // Coldre começa virado ~180° no eixo vertical, em direção às costas.
 // O ângulo exato depende da orientação exportada pelo Meshy, então é ajustável.
 const BELT_HOLSTER = Object.freeze({x:-.250, y:.855, z:-.020, rx:1.72, ry:-95.31, rz:-4.58});
-// Rest/Attack use identical default grips so the previously successful game
-// animation is preserved unless the user calibrates each one independently.
-const HAND_TONFA_REST = Object.freeze({x:0, y:-.125, z:-.008, rx:0, ry:0, rz:0});
-const HAND_TONFA_ATTACK = Object.freeze({x:0, y:-.125, z:-.008, rx:0, ry:0, rz:0});
-const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v075';
-const ACCESSORY_LEGACY_KEYS = ['tio-urso-acessorios-v074','tio-urso-acessorios-v073'];
+// Valores calibrados no próprio celular e enviados pelo jogador.
+// As animações originais de caminhada, corrida e combo permanecem intactas.
+const HAND_TONFA_REST = Object.freeze({x:0, y:-.075, z:-.058, rx:0, ry:-40, rz:0});
+const HAND_TONFA_ATTACK = Object.freeze({x:-.15, y:.075, z:-.008, rx:0, ry:5, rz:-110});
+// Chave nova intencional: em primeiro uso v0.7.6 aplica os quatro valores
+// enviados, sem carregar calibrações antigas que poderiam sobrepor os padrões.
+// O progresso de XP/missões continua na chave independente demo-v01.
+const ACCESSORY_ADJUST_KEY = 'tio-urso-acessorios-v076';
 const ACCESSORY_NAMES = ['tonfa','coldre','maoDescanso','maoAtaque'];
 const AXES_POSITION = ['x','y','z'];
 const AXES_ROTATION = ['rx','ry','rz'];
@@ -377,17 +386,16 @@ function normalizeAngleDegrees(value){
 function loadAccessoryAdjustments(){
   let saved=null;
   try {
-    for(const key of [ACCESSORY_ADJUST_KEY,...ACCESSORY_LEGACY_KEYS]){
-      const raw=localStorage.getItem(key);
-      if(!raw)continue;
+    const raw=localStorage.getItem(ACCESSORY_ADJUST_KEY);
+    if(raw){
       const obj=JSON.parse(raw);
-      if(obj && typeof obj==='object'){saved=obj;break;}
+      if(obj && typeof obj==='object' && !Array.isArray(obj)) saved=obj;
     }
-  }catch(e){console.warn('Não foi possível recuperar ajustes anteriores',e);}
+  }catch(e){console.warn('Não foi possível recuperar ajustes v0.7.6',e);}
   const positions={};
   for(const key of ACCESSORY_NAMES){
     const defaults=accessoryDefaults[key];
-    const previous=saved && typeof saved[key]==='object' ? saved[key] : {};
+    const previous=saved && saved[key] && typeof saved[key]==='object' ? saved[key] : {};
     positions[key]={};
     for(const axis of AXES_POSITION){
       positions[key][axis]=Number.isFinite(previous[axis])
@@ -405,20 +413,31 @@ function saveAccessoryAdjustments(){
   try{localStorage.setItem(ACCESSORY_ADJUST_KEY,JSON.stringify(accessoryAdjustments));}
   catch(e){console.warn('Ajustes aplicados nesta sessão, mas não salvos:',e);}
 }
-function applyBeltPlacement(){
-  if(tonfaBeltSocket){
-    const p=accessoryAdjustments.tonfa;
-    tonfaBeltSocket.position.set(p.x,p.y,p.z);
-    tonfaBeltSocket.rotation.set(THREE.MathUtils.degToRad(p.rx),
-      THREE.MathUtils.degToRad(p.ry),THREE.MathUtils.degToRad(p.rz),'XYZ');
+// A calibração do jogador usa coordenadas locais do GLB (raiz). Já a roupa
+// animada acompanha Hips, que pode ter deslocamentos nos clips do Meshy.
+// Convertemos a posição/rotação calibrada UMA VEZ para o sistema do osso
+// na pose inicial. Durante caminhada/corrida/ataque, os itens seguem Hips.
+function applyBeltSocket(socket, p){
+  if(!socket || !p)return;
+  const pos = new THREE.Vector3(p.x,p.y,p.z);
+  const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+    THREE.MathUtils.degToRad(p.rx),
+    THREE.MathUtils.degToRad(p.ry),
+    THREE.MathUtils.degToRad(p.rz),'XYZ'
+  ));
+  const calibratedInCharacter = new THREE.Matrix4().compose(
+    pos, rot, new THREE.Vector3(1,1,1)
+  );
+  if(hipsReferenceInverse && socket.parent===hipBone){
+    calibratedInCharacter.premultiply(hipsReferenceInverse);
   }
-  if(rightHolster){
-    const p=accessoryAdjustments.coldre;
-    rightHolster.position.set(p.x,p.y,p.z);
-    rightHolster.rotation.set(THREE.MathUtils.degToRad(p.rx),
-      THREE.MathUtils.degToRad(p.ry),THREE.MathUtils.degToRad(p.rz),'XYZ');
-  }
+  calibratedInCharacter.decompose(socket.position,socket.quaternion,socket.scale);
 }
+function applyBeltPlacement(){
+  applyBeltSocket(tonfaBeltSocket,accessoryAdjustments.tonfa);
+  applyBeltSocket(rightHolster,accessoryAdjustments.coldre);
+}
+
 function applyHandPlacement(attackBlend=handAttackBlend){
   if(!tonfaModel || tonfaModel.parent!==tonfaHandSocket)return;
   const a=accessoryAdjustments.maoDescanso;
@@ -465,11 +484,18 @@ function attachTonfaToRig(){
     return false;
   }
   tonfaAttachedToHand=true;
-  // Esquerda e direita fixas no tronco/cinto, que é independente das
-  // oscilações e rotações do osso quadril durante caminhada e combo.
-  characterModel.add(tonfaBeltSocket);
-  characterModel.add(rightHolster);
+  // Antes, os suportes eram filhos de characterModel; o GLB anima os ossos
+  // Hips.position, deixando coldre/tonfa parados enquanto o corpo se move.
+  // Mantemos os valores aprovados no referencial ORIGINAL do personagem.
+  characterModel.updateWorldMatrix(true,true);
+  const hipInCharacter=new THREE.Matrix4().multiplyMatrices(
+    characterModel.matrixWorld.clone().invert(), hipBone.matrixWorld
+  );
+  hipsReferenceInverse=hipInCharacter.invert();
+  hipBone.add(tonfaBeltSocket);
+  hipBone.add(rightHolster);
   rightHandBone.add(tonfaHandSocket);
+  console.info('v0.7.7: coldre e tonfa guardada ancorados ao quadril animado.');
   // Apenas encaixe da peça — sem forçar rotação do punho nem dedos do urso.
   tonfaHandSocket.position.set(-.015,.085,.024);
   tonfaHandSocket.rotation.set(.04,0,-.12);
@@ -533,7 +559,7 @@ function enableAccessoryCalibration(){
   panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(254px,61vw);max-height:72vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px;background:rgba(8,25,39,.94);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0006;';
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-      <b>AJUSTE FINO 0.7.5</b>
+      <b>AJUSTE FINO 0.7.6</b>
       <button type="button" id="cal-collapse" aria-label="Recolher painel" style="padding:3px 7px;color:#fff;background:#304e65;border-radius:5px">−</button>
     </div>
     <div id="cal-body">
