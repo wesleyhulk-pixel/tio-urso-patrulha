@@ -1,3 +1,6 @@
+// v0.8.7: ajuste fino exclusivo da pata das costas (posição XYZ, rotação XYZ, escala)
+// e pisadas provisórias sintetizadas pelo Web Audio ao caminhar/correr.
+// Calibrações existentes, GLBs e animações foram mantidos da v0.8.6.
 // v0.8.6: proteção contra desaparecimento do personagem por descarte
 // incorreto do SkinnedMesh durante a rotação da câmera. GLB, ossos,
 // materiais, animações e calibrações dos equipamentos inalterados.
@@ -47,6 +50,7 @@ const HOLSTER_FILE = './coldre.glb';
 const TONFA_BELT_FILE = './tonfa.glb';
 const PISTOL_FILE = './pistola.glb';
 const FIREARM_TEST_MODE = new URLSearchParams(location.search).has('ajuste');
+const PAW_ADJUST_MODE = new URLSearchParams(location.search).has('pata');
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
@@ -70,6 +74,68 @@ const SOUND_LABELS = [
 ];
 let audioContext=null, audioMaster=null, soundBuffers={}, audioLoad=null;
 let audioEnabled=true, audioVolume=.70, audioLoops=[], audioPreviewSource=null;
+// Passos provisórios: som criado no navegador sem depender de outro MP3.
+// O tempo do efeito é guiado pela fase de Walking/Running do AnimationMixer.
+let stepNoiseBuffer=null, stepLastMarker=null, stepLastAt=-100;
+function playFootstep(runningStep=false){
+  if(!audioEnabled || !audioContext || !audioMaster || audioContext.state!=='running')return;
+  if(!stepNoiseBuffer){
+    const sampleRate=audioContext.sampleRate;
+    const n=Math.max(128,Math.floor(sampleRate*.11));
+    stepNoiseBuffer=audioContext.createBuffer(1,n,sampleRate);
+    const samples=stepNoiseBuffer.getChannelData(0);
+    for(let i=0;i<n;i++){
+      const t=i/n;
+      samples[i]=(Math.random()*2-1)*Math.pow(1-t,2.8);
+    }
+  }
+  const now=audioContext.currentTime;
+  const source=audioContext.createBufferSource();source.buffer=stepNoiseBuffer;
+  const filter=audioContext.createBiquadFilter();filter.type='lowpass';
+  filter.frequency.value=runningStep?930:670;
+  const g=audioContext.createGain();
+  const level=runningStep?.21:.14;
+  g.gain.setValueAtTime(.001,now);
+  g.gain.exponentialRampToValueAtTime(level,now+.008);
+  g.gain.exponentialRampToValueAtTime(.001,now+.115);
+  source.connect(filter);filter.connect(g);g.connect(audioMaster);
+  source.start(now);source.stop(now+.12);
+  // Reforço grave leve, mais forte na corrida.
+  const thump=audioContext.createOscillator();thump.type='sine';
+  thump.frequency.setValueAtTime(runningStep?105:88,now);
+  thump.frequency.exponentialRampToValueAtTime(55,now+.075);
+  const tg=audioContext.createGain();tg.gain.setValueAtTime(.001,now);
+  tg.gain.exponentialRampToValueAtTime(runningStep?.08:.05,now+.006);
+  tg.gain.exponentialRampToValueAtTime(.001,now+.085);
+  thump.connect(tg);tg.connect(audioMaster);
+  thump.start(now);thump.stop(now+.09);
+}
+function syncFootsteps(speed,runningStep,blocking){
+  if(speed<.48 || blocking){stepLastMarker=null;return;}
+  if(!audioEnabled || !audioContext || audioContext.state!=='running')return;
+  const action=runningStep?runAnim:walkAnim;
+  if(!action || !animationMixer){
+    // Reserva caso o personagem não tenha rig importado.
+    const interval=runningStep?.29:.48;
+    if(audioContext.currentTime-stepLastAt>interval){
+      stepLastAt=audioContext.currentTime;playFootstep(runningStep);
+    }
+    return;
+  }
+  const clip=action.getClip();
+  if(!clip?.duration)return;
+  const stepIndex=Math.floor((action.time%clip.duration)/clip.duration*2);
+  const marker=(runningStep?'R':'W')+stepIndex;
+  if(stepLastMarker===null){stepLastMarker=marker;return;}
+  if(marker!==stepLastMarker){
+    stepLastMarker=marker;
+    const now=audioContext.currentTime;
+    if(now-stepLastAt>(runningStep?.17:.24)){
+      stepLastAt=now;playFootstep(runningStep);
+    }
+  }
+}
+
 try {
   const cfg=JSON.parse(localStorage.getItem('tio-urso-audio-v085')||'{}');
   if(typeof cfg.enabled==='boolean')audioEnabled=cfg.enabled;
@@ -164,6 +230,16 @@ function installAudioPanel(){
     });
     list.append(button);
   }
+  const stepsButton=document.createElement('button');
+  stepsButton.type='button';stepsButton.textContent='▶ Passos (teste)';
+  stepsButton.addEventListener('click',()=>{
+    if(!audioEnabled){audioEnabled=true;applyAudioGain();}
+    initializeAudio().then(()=>{
+      playFootstep(false);
+      window.setTimeout(()=>playFootstep(true),300);
+    });
+  });
+  list.append(stepsButton);
   updateAudioButtons();
 }
 
@@ -310,6 +386,118 @@ const aimColliders=[];
 const aimTargetPoint=new THREE.Vector3();
 
 let contactShadow = null, sunLight = null, pawBadge = null;
+// Ajustes são DESLOCAMENTOS LOCAIS a partir da posição atual do emblema.
+// Assim o jogador pode calibrar sem mexer no esqueleto ou no colete GLB.
+const PAW_STORAGE_KEY='tio-urso-pata-v087';
+const PAW_DEFAULTS=Object.freeze({x:0,y:0,z:0,rx:0,ry:0,rz:0,escala:1});
+let pawAdjustments={...PAW_DEFAULTS};
+let pawBasePosition=null,pawBaseQuaternion=null;
+try{
+  const saved=JSON.parse(localStorage.getItem(PAW_STORAGE_KEY)||'null');
+  if(saved && typeof saved==='object'){
+    for(const k of Object.keys(PAW_DEFAULTS)){
+      if(Number.isFinite(saved[k]))pawAdjustments[k]=saved[k];
+    }
+  }
+}catch(e){console.warn('Ajuste da pata salvo inválido',e);}
+function savePawAdjustments(){
+  try{localStorage.setItem(PAW_STORAGE_KEY,JSON.stringify(pawAdjustments));}catch(e){}
+}
+function applyPawAdjustments(){
+  if(!pawBadge || !pawBasePosition || !pawBaseQuaternion)return;
+  const a=pawAdjustments;
+  pawBadge.position.copy(pawBasePosition).add(new THREE.Vector3(a.x,a.y,a.z));
+  const rot=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+    THREE.MathUtils.degToRad(a.rx),THREE.MathUtils.degToRad(a.ry),
+    THREE.MathUtils.degToRad(a.rz),'XYZ'));
+  pawBadge.quaternion.copy(pawBaseQuaternion).multiply(rot).normalize();
+  pawBadge.scale.setScalar(a.escala);
+}
+function enablePawCalibration(){
+  if(!PAW_ADJUST_MODE)return;
+  const panel=document.createElement('aside');
+  panel.id='paw-calibration';
+  panel.setAttribute('aria-label','Ajuste fino do emblema nas costas do Tio Urso');
+  panel.style.cssText='position:fixed;right:8px;top:14%;z-index:99999;width:min(290px,59vw);max-height:73vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:11px;background:rgba(8,25,39,.95);color:white;border:1px solid #f9c45c;border-radius:12px;font:12px system-ui;box-shadow:0 5px 20px #0008;';
+  panel.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <b>🐾 AJUSTE DA PATA · v0.8.7</b>
+      <button id="paw-collapse" type="button" style="background:#30506a;color:white;border-radius:6px;padding:6px 10px;">−</button>
+    </div>
+    <div id="paw-body">
+      <small style="display:block;margin:8px 0;color:#c9dfe8">Ajuste somente o emblema. Gire a câmera para ver se está rente ao colete.</small>
+      <div id="paw-values" style="padding:7px;background:#0b3046;border-radius:6px;line-height:1.7;margin:6px 0" aria-live="polite"></div>
+      <label style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin:7px 0">Passo da posição
+        <select id="paw-pos-step" style="padding:5px;color:#101b27;background:white;border-radius:5px"><option value="0.005">0,005 fino</option><option value="0.01" selected>0,010</option><option value="0.025">0,025</option></select>
+      </label>
+      <div style="font-weight:bold;margin:8px 0 4px">↔ POSIÇÃO XYZ</div>
+      <div id="paw-positions" style="display:grid;grid-template-columns:1fr 1fr;gap:5px"></div>
+      <label style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin:12px 0 4px">Giro em graus
+        <select id="paw-rot-step" style="padding:5px;color:#101b27;background:white;border-radius:5px"><option value="1">1° fino</option><option value="5" selected>5°</option><option value="15">15°</option></select>
+      </label>
+      <div style="font-weight:bold;margin:6px 0 4px">↻ ROTAÇÃO XYZ</div>
+      <div id="paw-rotations" style="display:grid;grid-template-columns:1fr 1fr;gap:5px"></div>
+      <div style="font-weight:bold;margin:10px 0 4px">📏 TAMANHO DO EMBLEMA</div>
+      <div id="paw-size" style="display:grid;grid-template-columns:1fr 1fr;gap:5px"></div>
+      <button id="paw-reset" type="button" class="paw-secondary">Restaurar ajuste da pata</button>
+      <button id="paw-copy" type="button" class="paw-secondary">📋 Copiar meus ajustes</button>
+      <textarea id="paw-json" readonly rows="6" style="display:none;width:100%;box-sizing:border-box;background:#16394d;color:#fff;border:1px solid #7aa5b6;border-radius:7px;margin-top:7px;padding:7px;font-size:11px;user-select:text;" aria-label="Valores da pata para copiar manualmente"></textarea>
+      <small id="paw-message" role="status" style="display:block;margin:7px 0;color:#ffe0a0">As alterações são salvas automaticamente neste navegador.</small>
+    </div>`;
+  document.body.append(panel);
+  const text=panel.querySelector('#paw-message'),readout=panel.querySelector('#paw-values');
+  for(const btn of panel.querySelectorAll('.paw-secondary')){
+    btn.style.cssText='display:block;width:100%;padding:9px;margin:7px 0 0;border-radius:7px;background:#34536b;color:#fff;border:1px solid #819bac;';
+  }
+  const show=()=>{
+    const a=pawAdjustments;
+    readout.textContent=`Posição X ${a.x.toFixed(3)} · Y ${a.y.toFixed(3)} · Z ${a.z.toFixed(3)} | Giro X ${a.rx.toFixed(1)}° · Y ${a.ry.toFixed(1)}° · Z ${a.rz.toFixed(1)}° | Tamanho ${(a.escala*100).toFixed(0)}%`;
+  };
+  const adjust=(key,delta)=>{
+    const a=pawAdjustments;
+    if(key==='escala')a[key]=Math.round(THREE.MathUtils.clamp(a[key]+delta,.25,2)*100)/100;
+    else if(key.startsWith('r'))a[key]=Math.round((a[key]+delta)*100)/100;
+    else a[key]=Math.round(THREE.MathUtils.clamp(a[key]+delta,-.6,.6)*1000)/1000;
+    applyPawAdjustments();savePawAdjustments();show();
+    text.textContent='Salvo. Gire a câmera e confira todos os ângulos.';
+  };
+  const addButton=(area,label,key,dir,mode)=>{
+    const b=document.createElement('button');b.type='button';b.textContent=label;
+    b.style.cssText='min-height:35px;padding:7px 4px;color:#112539;background:#f5d47b;border:0;border-radius:6px;font:12px system-ui;';
+    b.addEventListener('click',()=>{
+      const step=mode==='pos'?Number(panel.querySelector('#paw-pos-step').value):
+        mode==='rot'?Number(panel.querySelector('#paw-rot-step').value):.05;
+      adjust(key,step*dir);
+    });
+    area.append(b);
+  };
+  const pos=panel.querySelector('#paw-positions');
+  for(const [label,key] of [['Lado','x'],['Altura','y'],['Profundidade','z']]){
+    addButton(pos,label+' −',key,-1,'pos');addButton(pos,label+' +',key,1,'pos');
+  }
+  const rot=panel.querySelector('#paw-rotations');
+  for(const [label,key] of [['Inclinar X','rx'],['Virar Y','ry'],['Torcer Z','rz']]){
+    addButton(rot,label+' −',key,-1,'rot');addButton(rot,label+' +',key,1,'rot');
+  }
+  const size=panel.querySelector('#paw-size');
+  addButton(size,'Menor −','escala',-1,'size');addButton(size,'Maior +','escala',1,'size');
+  panel.querySelector('#paw-reset').addEventListener('click',()=>{
+    pawAdjustments={...PAW_DEFAULTS};applyPawAdjustments();savePawAdjustments();show();
+    text.textContent='Pata restaurada. Outros acessórios não foram alterados.';
+  });
+  panel.querySelector('#paw-copy').addEventListener('click',async()=>{
+    const data=JSON.stringify({pataCostas:pawAdjustments},null,2);
+    const input=panel.querySelector('#paw-json');input.value=data;
+    try{await navigator.clipboard.writeText(data);text.textContent='✅ Valores copiados! Cole na conversa.';input.style.display='none';}
+    catch(e){input.style.display='block';input.focus();input.select();text.textContent='Selecione e copie os valores mostrados abaixo.';}
+  });
+  panel.querySelector('#paw-collapse').addEventListener('click',()=>{
+    const body=panel.querySelector('#paw-body');body.hidden=!body.hidden;
+    panel.querySelector('#paw-collapse').textContent=body.hidden?'+':'−';
+  });
+  show();
+}
+
 const accessoryWorldOffset = new THREE.Vector3();
 const shadowAnchor = new THREE.Vector3();
 const sunlightOffset = new THREE.Vector3(-12,25,-10);
@@ -948,7 +1136,7 @@ function updateAimReticle(dt){
 // Ajuste fino opcional pelo telefone: abra ?ajuste=1.
 // Permite corrigir poucos centímetros sem remontar ou reenviar o jogo.
 function enableAccessoryCalibration(){
-  if(!FIREARM_TEST_MODE)return;
+  if(!FIREARM_TEST_MODE || PAW_ADJUST_MODE)return;
   const panel=document.createElement('aside');
   panel.id='accessory-calibration';
   panel.setAttribute('aria-label','Ajuste fino exclusivo de mira da pistola');
@@ -1124,6 +1312,7 @@ function makePawBadge(){
     side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2});
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.145,.165),material);
   mesh.name='Emblema_Pata_Colete_Costas';
+  mesh.frustumCulled=false; // Não desaparecer no giro de câmera com rig animado.
   // Encontre a SUPERFÍCIE do colete: o posicionamento antigo -0.229 era
   // fixo e por isso o desenho parecia flutuar atrás do Tio Urso.
   // Em referencial do personagem, traseira = -Z; o raycast segue +Z.
@@ -1147,6 +1336,9 @@ function makePawBadge(){
   mesh.quaternion.copy(boneWorld.invert().multiply(targetWorld));
   mesh.renderOrder=2;
   pawBadge=mesh;
+  pawBasePosition=mesh.position.clone();
+  pawBaseQuaternion=mesh.quaternion.clone();
+  applyPawAdjustments();
 }
 
 function buildScene(){
@@ -1362,6 +1554,9 @@ function update(dt){
     animVars.phase.value=animationTime;
     animVars.amount.value=walkBlend;
   }
+  // Passos sincronizados à fase dos clipes reais: duas pisadas por ciclo.
+  // Sem arquivo sonoro externo, apenas áudio sintetizado provisório.
+  syncFootsteps(speed,Boolean(runningBlend>.5 && running),comboActive || comboBlend>.20);
   actionElapsed+=dt;
   const pulse=actionElapsed<.32?Math.sin(Math.PI*actionElapsed/.32):0;
   // Nas animações importadas, o próprio corpo realiza o ataque.
@@ -1529,6 +1724,7 @@ try{
   installAudioPanel();
   const loaded=await buildScene();
   enableAccessoryCalibration();
+  enablePawCalibration();
   ready=true;introButton.disabled=false;
   introButton.textContent='INICIAR PATRULHAMENTO';
   el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';

@@ -1,14 +1,18 @@
-TIO URSO: PATRULHA — v0.8.6 (CORREÇÃO DE INVISIBILIDADE)
+TIO URSO: PATRULHA v0.8.7 — PATA AJUSTÁVEL + PASSOS
 
-Corrige uma causa provável de o personagem desaparecer quando a câmera vai
-para trás: desativa o frustum culling no(s) mesh(es) do Tio Urso animado.
-A mudança NÃO altera o GLB, as animações, as texturas, câmera, mira,
-emblema, posição da tonfa, coldre ou os ajustes de pistola aprovados.
+Atualize index.html e app.js no GitHub. Opcional: este LEIA-ME.txt.
+NÃO remova: tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb, style.css, ambiente-rua.mp3, ambiente-pessoas.mp3, efeitos.mp3.
 
-Se já instalou a versão com áudio v0.8.5, substitua index.html e app.js.
-Se ainda estava na v0.8.4, envie todos os seis arquivos deste ZIP para
-levar também os sons da v0.8.5. Preserve os demais arquivos do GitHub
-(tio-urso.glb, tonfa.glb, coldre.glb, pistola.glb, style.css).
+Jogo normal: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=087
+Ajuste EXCLUSIVO da pata nas costas: https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?pata=1&v=087
 
-Teste em seu Android: parado sem pistola, gire a câmera 360°; em seguida
-ande e corra com câmera atrás. A correção ainda depende do teste visual.
+O painel permite modificar POSIÇÃO XYZ, ROTAÇÃO XYZ e TAMANHO do emblema, sem alterar nenhuma calibração de pistola/tonfa/coldre.
+Os valores são DESLOCAMENTOS relativos ao emblema atual e ficam gravados neste navegador.
+Depois de calibrar, clique em 'Copiar meus ajustes' e cole o JSON na conversa.
+
+PASSOS: efeitos PROVISÓRIOS criados por Web Audio; caminhada e corrida com ritmo distinto.
+O som só é liberado depois de tocar em INICIAR PATRULHAMENTO.
+No painel 🔊 existe botão de teste de passos. Se estiver mudo, confira volume e silenciar.
+Os sons profissionais de passos podem substituir esses efeitos depois.
+
+Base: v0.8.6 (personagem visível em todos ângulos, animações e calibrações preservadas).
