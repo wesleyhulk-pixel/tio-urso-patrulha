@@ -1,20 +1,9 @@
-TIO URSO: PATRULHA — ATUALIZAÇÃO 0.8.4
+Tio Urso: Patrulha v0.8.5 — Áudio urbano + biblioteca de efeitos.
 
-Corrigido:
-- Câmera de mira em terceira pessoa sobre o ombro, com cruz de mira no centro apontando para a frente.
-- Emblema menor (14,5 x 16,5 cm na escala do jogo), em plano fino posicionado sobre a superfície das costas.
-- Calibração de pistola em mira aprovada como padrão: x=-0.012, y=0.195, z=-0.049, pitch=0, yaw=5, roll=-10.
+Envie TODOS os 6 arquivos extraídos para a raiz do GitHub (sobrescrevendo index.html, app.js, LEIA-ME.txt). NÃO APAGUE os GLBs nem style.css.
 
-Preservado:
-- Seis outros encaixes da tonfa, coldre e pistola e seus dados já salvos no navegador.
-- Animações do urso, tonfa, corrida automática, missão e XP.
-- Texturas e arquivos GLB; nenhum GLB precisa ser reenviado.
+Arquivos novos: ambiente-rua.mp3, ambiente-pessoas.mp3, efeitos.mp3.
 
-Como instalar: extraia este ZIP; no mesmo repositório GitHub, substitua index.html e app.js.
-O arquivo LEIA-ME.txt é opcional. Não apague outros arquivos.
-O ajuste de mira é apenas visual (sem disparos habilitados).
+O ambiente começa após o clique em INICIAR PATRULHAMENTO, sujeito à permissão do navegador. Toque no ícone 🔊 na barra superior para volume/mudo e prévias. Sons de pistola: equipamento e clique de teste; disparos funcionais não foram implementados. Sons de passos e tonfa ainda pendentes.
 
-Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/?v=084
-Para testar a pistola: ?ajuste=1&v=084
-
-Verifique no Android: retícula livre do colete; mira vertical; patch pequeno e rente; caminhada e equipamentos intactos.
+Ajustes de pistola, tonfa, coldre, animações e XP da v0.8.4 foram preservados.

@@ -1,3 +1,4 @@
+// v0.8.5: sons urbanos e biblioteca de efeitos com prévia.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -49,6 +50,120 @@ const RUN_SPEED = 5.4;
 const LIMIT = 48;
 
 const el = id => document.getElementById(id);
+
+// v0.8.5: biblioteca de áudio otimizada para Android, sem alterar rigging,
+// mira, posições aprovadas ou lógica de colisões/ataque.
+// AudioContext é iniciado apenas por gesto do usuário (exigência do Chrome).
+const SOUND_SPRITE = {"movimento_pistola":[0.25,0.542],"clique_pistola":[1.102,0.94],"disparo_previa":[2.352,1.881],"sirene":[4.543,1.896],"buzina_curta":[6.749,0.66],"buzina_classica":[7.719,0.558],"porta_carro":[8.587,0.711],"motor_ligar":[9.608,14.28]};
+const SOUND_LABELS = [
+  ['movimento_pistola','Movimento da pistola'],
+  ['clique_pistola','Clique da pistola'],
+  ['disparo_previa','Disparo (prévia, sem tiro no jogo)'],
+  ['sirene','Sirene'],
+  ['buzina_curta','Buzina curta'],
+  ['buzina_classica','Buzina clássica'],
+  ['porta_carro','Porta do carro'],
+  ['motor_ligar','Partida do motor']
+];
+let audioContext=null, audioMaster=null, soundBuffers={}, audioLoad=null;
+let audioEnabled=true, audioVolume=.70, audioLoops=[], audioPreviewSource=null;
+try {
+  const cfg=JSON.parse(localStorage.getItem('tio-urso-audio-v085')||'{}');
+  if(typeof cfg.enabled==='boolean')audioEnabled=cfg.enabled;
+  if(Number.isFinite(cfg.volume))audioVolume=Math.min(1,Math.max(0,cfg.volume));
+}catch(e){}
+function saveAudioPrefs(){
+  try{localStorage.setItem('tio-urso-audio-v085',JSON.stringify({enabled:audioEnabled,volume:audioVolume}));}catch(e){}
+}
+function updateAudioButtons(){
+  const b=el('audio-button'),t=el('audio-onoff'),s=el('audio-volume');
+  if(b)b.textContent=audioEnabled?'🔊':'🔇';
+  if(t)t.textContent=audioEnabled?'🔇 Silenciar':'🔊 Ativar sons';
+  if(s)s.value=String(Math.round(audioVolume*100));
+}
+function applyAudioGain(){
+  if(audioContext&&audioMaster){
+    audioMaster.gain.setTargetAtTime(audioEnabled?audioVolume:0,audioContext.currentTime,.03);
+  }
+  updateAudioButtons();saveAudioPrefs();
+}
+async function initializeAudio(){
+  if(!audioEnabled)return;
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC)return;
+  if(!audioContext){
+    audioContext=new AC();
+    audioMaster=audioContext.createGain();
+    audioMaster.gain.value=audioEnabled?audioVolume:0;
+    audioMaster.connect(audioContext.destination);
+  }
+  // Retomar dentro do gesto, antes de qualquer await.
+  if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
+  if(audioLoad)return audioLoad;
+  const entries=[['fx','efeitos.mp3'],['rua','ambiente-rua.mp3'],['pessoas','ambiente-pessoas.mp3']];
+  audioLoad=Promise.all(entries.map(async ([key,file])=>{
+    const resp=await fetch('./'+file);
+    if(!resp.ok)throw new Error('Som indisponível: '+file);
+    const ab=await resp.arrayBuffer();
+    soundBuffers[key]=await audioContext.decodeAudioData(ab);
+  })).then(()=>{
+    if(started)startAmbience();
+    const status=el('audio-status');
+    if(status)status.textContent='Áudio carregado • efeitos prontos para testar';
+  }).catch(err=>{
+    console.warn('Não foi possível carregar a biblioteca de áudio:',err);
+    const status=el('audio-status');
+    if(status)status.textContent='Falha no áudio; confira se os 3 arquivos MP3 estão no GitHub.';
+    audioLoad=null;
+  });
+  return audioLoad;
+}
+function startAmbience(){
+  if(!audioContext||audioLoops.length)return;
+  for(const [key,volume] of [['rua',.24],['pessoas',.12]]){
+    if(!soundBuffers[key])continue;
+    const src=audioContext.createBufferSource();
+    const gain=audioContext.createGain();
+    gain.gain.value=volume;src.buffer=soundBuffers[key];src.loop=true;
+    src.connect(gain);gain.connect(audioMaster);src.start();audioLoops.push(src);
+  }
+}
+function playGameSound(name,volume=.65){
+  if(!audioEnabled||!audioContext||!soundBuffers.fx||!SOUND_SPRITE[name])return;
+  const [start,duration]=SOUND_SPRITE[name];
+  const src=audioContext.createBufferSource();
+  const gain=audioContext.createGain();gain.gain.value=volume;
+  src.buffer=soundBuffers.fx;src.connect(gain);gain.connect(audioMaster);
+  // Para previews, interromper o último efeito antes de reproduzir outro.
+  if(name==='motor_ligar' && audioPreviewSource){try{audioPreviewSource.stop();}catch(e){}}
+  src.start(0,start,Math.max(.07,duration-.025));
+  return src;
+}
+function installAudioPanel(){
+  const panel=el('audio-panel');
+  if(!panel)return;
+  el('audio-button').addEventListener('click',()=>{panel.hidden=!panel.hidden;updateAudioButtons();});
+  el('audio-close').addEventListener('click',()=>panel.hidden=true);
+  el('audio-onoff').addEventListener('click',()=>{
+    audioEnabled=!audioEnabled;applyAudioGain();
+    if(audioEnabled)initializeAudio();
+  });
+  el('audio-volume').addEventListener('input',e=>{
+    audioVolume=Math.max(0,Math.min(1,Number(e.target.value)/100));applyAudioGain();
+  });
+  const list=el('audio-previews');
+  for(const [key,label] of SOUND_LABELS){
+    const button=document.createElement('button');button.type='button';
+    button.textContent='▶ '+label;
+    button.addEventListener('click',()=>{
+      if(!audioEnabled){audioEnabled=true;applyAudioGain();}
+      initializeAudio().then(()=>{audioPreviewSource=playGameSound(key,key==='disparo_previa'?.30:.65);});
+    });
+    list.append(button);
+  }
+  updateAudioButtons();
+}
+
 const mount = el('view');
 let renderer, scene, camera, clock, player, characterModel;
 let started = false, ready = false, ignorePortrait = false;
@@ -938,6 +1053,7 @@ function selectEquipment(item){
   }
   if(item!=='arma')setAiming(false);
   equipped=item;
+  if(item==='arma')playGameSound('movimento_pistola',.48);
   el('weapon-label').textContent=item==='tonfa'?'🥢 TONFA':item==='arma'?'🎯 PISTOLA':'👊 PUNHOS';
   el('action').querySelector('span').textContent=item==='tonfa'?'🥢':item==='arma'?'🎯':'👊';
   refreshTonfaState();
@@ -948,6 +1064,7 @@ function selectEquipment(item){
 function doAction(){
   if(!started)return;
   if(equipped==='arma'){
+    playGameSound('clique_pistola',.38);
     notify('Teste de mira apenas: disparos serão liberados numa futura missão.',2000);
     return;
   }
@@ -1392,6 +1509,7 @@ function installControls(){
 }
 try{
   installControls();
+  installAudioPanel();
   const loaded=await buildScene();
   enableAccessoryCalibration();
   ready=true;introButton.disabled=false;
@@ -1399,7 +1517,10 @@ try{
   el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';
   introButton.addEventListener('click',async()=>{
     if(!ready)return;
-    started=true;el('intro').style.display='none';notify('Empurre o joystick até o topo para CORRER automaticamente. Converse com 3 cidadãos!',3900);
+    started=true;el('intro').style.display='none';
+    // Áudio só começa após clicar em INICIAR PATRULHAMENTO.
+    initializeAudio();
+    notify('Empurre o joystick até o topo para CORRER automaticamente. Converse com 3 cidadãos!',3900);
     try {if(screen.orientation?.lock)await screen.orientation.lock('landscape');} catch(e) { /* mobile browsers may disallow */ }
   });
   loop();

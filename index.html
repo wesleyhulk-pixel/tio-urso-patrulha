@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Protótipo 0.8.4</title>
-  <link rel="stylesheet" href="./style.css?v=084" />
+  <title>Tio Urso: Patrulha | Protótipo 0.8.5</title>
+  <link rel="stylesheet" href="./style.css?v=085" />
   <script type="importmap">
     {
       "imports": {
@@ -15,14 +15,16 @@
       }
     }
   </script>
+<style>#audio-previews button{background:#284765;color:#fff;border:1px solid #ffffff44;border-radius:7px;padding:7px 5px;font-size:11px;min-height:36px;touch-action:manipulation}#audio-button:active,#audio-previews button:active{filter:brightness(1.3)}#audio-panel[hidden]{display:none!important}</style>
 </head>
 <body>
   <main id="game" aria-label="Cenário 3D de patrulhamento">
     <div id="view"></div>
 
     <header id="top-ui">
-      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.8.4 • CENÁRIO DE TESTE</small></div></div>
+      <div class="brand"><span class="bear">🐻</span><div><b>TIO URSO <em>PATRULHA</em></b><small>PROTÓTIPO 0.8.5 • CENÁRIO DE TESTE</small></div></div>
       <div class="score"><span id="level">NÍVEL 1</span><div class="xpbar"><span id="xp-fill"></span></div><span id="xp-label">0 XP</span></div>
+      <button id="audio-button" type="button" style="pointer-events:auto;background:#0c1e32b8;border:1px solid #ffffff44;border-radius:10px;padding:4px 8px;font-size:19px" aria-label="Configurações de áudio" title="Sons do jogo">🔊</button>
       <button id="full" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button>
     </header>
 
@@ -34,6 +36,19 @@
       <svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true"><path d="M21 3v11M21 28v11M3 21h11M28 21h11" stroke="#fff5ce" stroke-width="2.2"/><circle cx="21" cy="21" r="4.5" fill="none" stroke="#fff5ce" stroke-width="1.6"/><circle cx="21" cy="21" r="1.1" fill="#ffcf55"/></svg>
     </div>
     <button id="aim-button" hidden type="button" style="position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(210px + env(safe-area-inset-bottom));z-index:5;padding:10px 14px;border-radius:12px;border:1px solid #f1c968;background:#112d45ea;color:#fff;font-weight:800;box-shadow:0 5px 14px #0006;touch-action:manipulation">🎯 MIRAR</button>
+
+    <!-- Áudio inicia apenas mediante interação, respeitando regras de autoplay. -->
+    <div id="audio-panel" hidden aria-label="Biblioteca de sons" style="position:absolute;right:16px;top:65px;width:min(285px,72vw);max-height:75vh;overflow-y:auto;z-index:20;background:#092238f5;color:white;border:1px solid #f3bf4c;border-radius:12px;padding:12px;box-shadow:0 8px 26px #0009;touch-action:pan-y;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:7px"><strong>🔊 Sons do Tio Urso</strong><button id="audio-close" type="button" style="background:#365065;border-radius:7px;padding:5px 9px">✕</button></div>
+      <p id="audio-status" style="font-size:11px;color:#d1dfea;margin:8px 0">Toque em iniciar patrulhamento para ativar o ambiente.</p>
+      <button id="audio-onoff" type="button" style="width:100%;background:#234764;border:1px solid #9ab2c5;border-radius:8px;padding:8px">🔇 Silenciar</button>
+      <label style="display:block;margin-top:8px;font-size:12px">Volume
+        <input id="audio-volume" type="range" min="0" max="100" value="70" style="width:100%;touch-action:pan-x"/>
+      </label>
+      <strong style="display:block;margin:8px 0 5px;font-size:12px">Prévia dos efeitos (teste)</strong>
+      <div id="audio-previews" style="display:grid;grid-template-columns:1fr 1fr;gap:5px"></div>
+      <small style="display:block;margin-top:8px;color:#c5d1da">Sirenes, buzinas, porta e motor ficam reservados para as viaturas. Disparo: só prévia, sem tiro no jogo. Passos e tonfa: efeitos ainda pendentes.</small>
+    </div>
     <div id="action-hint" aria-live="polite"></div>
     <div id="toast" role="status" aria-live="polite"></div>
 
@@ -69,6 +84,6 @@
     <div id="rotate-hint"><div><span>📱 ↻</span><b>Gire o celular para horizontal</b><p>Este jogo foi preparado para o modo paisagem.</p><button id="ignore-rotate">Continuar assim mesmo</button></div></div>
     <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
   </main>
-  <script type="module" src="./app.js?v=084"></script>
+  <script type="module" src="./app.js?v=085"></script>
 </body>
 </html>
