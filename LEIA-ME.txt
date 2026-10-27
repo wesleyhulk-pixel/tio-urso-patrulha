@@ -1,12 +1,2 @@
-TIO URSO: PATRULHA — v1.0.7 (TESTE CONTROLADO)
-
-Envie TODOS os arquivos desta pasta à RAIZ do mesmo repositório GitHub. Não apague seus outros arquivos existentes (style.css, assets de personagem, equipamentos, sons e manifest).
-
-Inclui:
-- Mapa original TopoExport e referências A11/P1-P5/E5.
-- Fastback visível em posição PROVISÓRIA próxima à recepção, sem afirmar que a vaga exata foi identificada.
-- Ferramenta no minimapa para marcar vaga, girar e ajustar em 1 metro.
-- Quatro arquivos FBX reais enviados pelo usuário; painel mostra sucessos ou erros de carregamento. Não há promessa de que todas as texturas/animações funcionem no Android.
-- WASD/joystick mantendo a lógica testada na v1.0.6 e sem colisões (diagnóstico).
-
-FALTAM: fachada fiel, posicionamento final da Fastback, NPCs validados visualmente e detalhes de estacionamento, caixa d água/estação de bombeamento. Não incluídos nesta entrega, evitando invenções geográficas.
+v1.0.7.2 - Mouse PC: controle de camera livre (Pointer Lock); ESC pausa e libera cursor; Continuar retoma.
+Envie somente app.js ao GitHub. Nao mexe no GLB Fastback.

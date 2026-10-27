@@ -1117,8 +1117,10 @@ function applyAccessoryPlacement(){
 
 function refreshTonfaState(){
   if(!tonfaModel || !tonfaHandSocket || !tonfaBeltSocket) return;
-  const readyTonfa=talked.size>=3 && tonfaAttachedToHand && tonfaAssetLoaded;
-  const inHand=readyTonfa && equipped==='tonfa';
+  // A tonfa fica visível no cinto desde o início; a missão libera apenas empunhá-la.
+  // Não esconder o equipamento de cintura quando ainda não foi desbloqueado.
+  const readyTonfa=tonfaAttachedToHand && tonfaAssetLoaded;
+  const inHand=readyTonfa && talked.size>=3 && equipped==='tonfa';
   const socket=inHand ? tonfaHandSocket : tonfaBeltSocket;
   if(tonfaModel.parent!==socket)socket.add(tonfaModel);
   if(inHand){
@@ -2106,7 +2108,7 @@ function movementDebug(){
 function loop(){
   requestAnimationFrame(loop);
   const dt=Math.max(.001,Math.min(clock.getDelta(),.05));
-  try {if(started)update(dt);}catch(e){
+  try {if(started && !window.__ursoMouseControl?.isPaused())update(dt);}catch(e){
     const msg=(e?.message||String(e));
     if(msg!==movementLastError)console.error('Falha no update:',e);
     movementLastError=msg;
@@ -2169,7 +2171,36 @@ function installControls(){
   window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;clearStick();});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.
   let cameraPointer=null,lastX=0,lastY=0;
+  // v1.0.7.2: camera por Pointer Lock no PC, sem segurar mouse.
+  let pcPaused=false;
+  const pauseShade=document.createElement('div');
+  pauseShade.id='pc-pause-shade';
+  pauseShade.style.cssText='display:none;position:fixed;inset:0;z-index:99998;background:rgba(4,14,25,.78);color:white;align-items:center;justify-content:center;flex-direction:column;gap:16px;font:bold 22px system-ui;text-align:center';
+  pauseShade.innerHTML='<div>⏸ JOGO PAUSADO</div><button type="button" id="pc-resume" style="font-size:18px;padding:12px 32px;border-radius:10px;cursor:pointer">▶ CONTINUAR</button><small style="font:14px system-ui">ESC pausa e libera o cursor</small>';
+  document.body.appendChild(pauseShade);
+  const isPC=()=>document.body.classList.contains('desktop-control');
+  const requestMouse=()=>{if(isPC()&&started&&!pcPaused&&document.pointerLockElement!==mount){const p=mount.requestPointerLock?.();p?.catch?.(err=>console.warn('Mouse lock indisponível:',err));}};
+  const resumePC=()=>{pcPaused=false;pauseShade.style.display='none';pressedKeys.clear();requestMouse();};
+  pauseShade.querySelector('#pc-resume').addEventListener('click',resumePC);
+  document.addEventListener('pointerlockchange',()=>{
+    if(document.pointerLockElement!==mount && started && isPC() && !pcPaused){pcPaused=true;pauseShade.style.display='flex';pressedKeys.clear();}
+  });
+  document.addEventListener('mousemove',e=>{
+    if(document.pointerLockElement!==mount||!started||pcPaused||!isPC())return;
+    camYaw-=e.movementX*.006;
+    camPitch=THREE.MathUtils.clamp(camPitch+e.movementY*.0045,CAM_PITCH_MIN,CAM_PITCH_MAX);
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.code==='Escape'&&started&&isPC()){
+      pcPaused=true;pauseShade.style.display='flex';pressedKeys.clear();
+      if(document.pointerLockElement===mount)document.exitPointerLock?.();
+      e.preventDefault();
+    }
+  });
+  // Expor funções apenas aos botões Novo/Continuar e ao laço principal.
+  window.__ursoMouseControl={requestMouse,isPaused:()=>pcPaused,isPC};
   mount.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&isPC()){requestMouse();return;}
     if(e.pointerType==='mouse'&&e.button!==0)return;
     if(cameraPointer!==null)return; // O segundo dedo continua independente no joystick.
     cameraPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;
@@ -2239,6 +2270,7 @@ try{
     if(!ready)return;
     resetSession();
     started=true;el('intro').style.display='none';
+    window.__ursoMouseControl?.requestMouse();
     document.body.classList.add('patrulha-iniciada');
     // Audio e orientacao devem comecar pelo toque do usuario (permissao Android).
     initializeAudio();
@@ -2253,6 +2285,7 @@ try{
   continueButton.addEventListener('click',async()=>{
     if(!ready||!restoreSession())return;
     started=true;el('intro').style.display='none';
+    window.__ursoMouseControl?.requestMouse();
     document.body.classList.add('patrulha-iniciada');
     initializeAudio();await requestLandscapeForGame();
     notify('Partida retomada no local salvo!',2500);
