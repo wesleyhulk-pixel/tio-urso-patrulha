@@ -1,7 +1,1 @@
-TIO URSO: PATRULHA — Teste isolado de alinhamento geográfico
-1. Extraia o ZIP.
-2. Envie alinhamento.html e mapa-topoexport.glb para a raiz do GitHub do jogo, sem apagar nem substituir os arquivos atuais.
-3. Abra https://wesleyhulk-pixel.github.io/tio-urso-patrulha/alinhamento.html
-4. Use Vista aérea e zoom. Ative Marcar no mapa, selecione A11 (recepção) ou P1–P5 e toque no local.
-5. Toque Copiar pontos e envie as coordenadas no chat.
-ATENÇÃO: A localização dos prédios no GLB ainda não está identificada por nome. As marcações devem ser conferidas visualmente. O eixo vertical original do TopoExport foi corrigido (Z para Y). O teste não altera o jogo nem seu progresso.
+Envie quadra-real.html ao repositorio atual. O arquivo mapa-topoexport.glb ja deve estar na raiz do GitHub. Acesse /quadra-real.html. Isto NAO altera index.html nem app.js. Pontos cadastrados pelo usuario conforme topoexport-71F678.
