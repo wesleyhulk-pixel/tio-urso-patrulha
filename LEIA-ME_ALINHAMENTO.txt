@@ -1,0 +1,1 @@
+Correção 1.1: bibliotecas Three.js importadas com import map. Envie alinhamento.html para a raiz do repositório substituindo o anterior. Preserve mapa-topoexport.glb. Abra alinhamento.html?v=11. Caso continue em branco, envie captura mostrando mensagem de status.
