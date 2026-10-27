@@ -1717,10 +1717,32 @@ const FASTBACK_PREVIEW_SPOT={x:a11.x+awayFront.x*12,z:a11.z+awayFront.y*12,rot:0
 function readFastbackSpot(){try{return JSON.parse(localStorage.getItem(PARKING_KEY)||'null')}catch{return null}}
 function applyFastbackSpot(pt){
  if(!fastbackObj||!Number.isFinite(pt.x)||!Number.isFinite(pt.z))return;
- if(!fastbackObj.parent)prepareExternalModel(fastbackObj,1.65,pt.x,pt.z,pt.rot||0);
- fastbackObj.position.x=pt.x;fastbackObj.position.z=pt.z;
- fastbackObj.position.y=surfaceHeight(pt.x,pt.z);fastbackObj.rotation.y=(pt.rot||0);fastbackObj.visible=true;
+ // fastbackObj is a ground-aligned wrapper; never overwrite the child's normalized offsets.
+ fastbackObj.position.set(pt.x,surfaceHeight(pt.x,pt.z),pt.z);
+ fastbackObj.rotation.y=pt.rot||0;
+ fastbackObj.visible=true;
 }
+// Preserve original GLB proportions with ONE uniform scale. Recenter its mesh
+// independently of world placement, so parking adjustments cannot bury its wheels.
+function prepareFastbackModel(car){
+ const bb=new THREE.Box3().setFromObject(car);
+ if(bb.isEmpty())throw new Error('Fastback GLB sem geometria');
+ const dims=bb.getSize(new THREE.Vector3());
+ const longest=Math.max(dims.x,dims.z);
+ const scale=4.40/Math.max(longest,0.001);
+ if(!Number.isFinite(scale)||scale<=0||scale>1000)throw new Error('Escala inválida da Fastback');
+ const wrapper=new THREE.Group();
+ // Keep all axes scaled equally: never stretch height separately.
+ car.scale.multiplyScalar(scale);
+ car.position.set(-(bb.min.x+bb.max.x)*.5*scale,-bb.min.y*scale,-(bb.min.z+bb.max.z)*.5*scale);
+ car.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;n.frustumCulled=false;}});
+ wrapper.add(car);
+ scene.add(wrapper);
+ console.info('Fastback dimensões originais',dims.toArray(),'escala uniforme',scale,
+   'dimensões no jogo',dims.clone().multiplyScalar(scale).toArray());
+ return wrapper;
+}
+
 function updateCalibratedMarkers(){
  if(!scene)return;
  for(const code of ['A11','P1','P2','P3','P4','P5','E5']){
@@ -1770,7 +1792,8 @@ function populateCity(){
  new GLTFLoader().load('./fastback-gm.glb?v=103',g=>{
    const car=g.scene;
    // Fastback somente no estacionamento FRONTAL: o usuário seleciona a vaga.
-   fastbackObj=car;fastbackBase=car;
+   try { fastbackObj=prepareFastbackModel(car);fastbackBase=car; }
+   catch(error){console.error('Falha no modelo Fastback',error);npcInfo('Erro no modelo Fastback');return;}
    const saved=readFastbackSpot();
    if(saved) applyFastbackSpot(saved);
    else {applyFastbackSpot(FASTBACK_PREVIEW_SPOT);npcInfo('Fastback: posição de teste junto à GM • ajuste vaga no minimapa');}

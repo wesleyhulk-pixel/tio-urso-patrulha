@@ -1,2 +1,11 @@
-v1.0.7.2 - Mouse PC: controle de camera livre (Pointer Lock); ESC pausa e libera cursor; Continuar retoma.
-Envie somente app.js ao GitHub. Nao mexe no GLB Fastback.
+Tio Urso: Patrulha v1.0.7.3 — Correção de proporção/altura da Fastback
+
+Envie SOMENTE app.js à raiz do repositório, substituindo o arquivo anterior.
+Mantém Pointer Lock da v1.0.7.2 e regra da tonfa da v1.0.7.1.
+
+O carro agora é centralizado num grupo separado: escala UNIFORME de comprimento
+aproximado 4,4 unidades, rodas alinhadas ao terreno e orientação salva preservada.
+NÃO muda a geometria original do Meshy. Se ela própria for deformada, isso
+exige reparar/substituir o GLB, não apenas alterar escala no jogo.
+
+A vaga é provisória até a calibração frontal. Não usar E5 como vaga da Fastback.
