@@ -418,9 +418,7 @@ let realMapSurface=null, fastbackObj=null, fastbackBase=null;
 let buildingColliders=[];
 const PLAYER_RADIUS=0.38;
 function collidesWithBuilding(x,z){
-  const y=surfaceHeight(x,z)+0.80;
   for(const b of buildingColliders){
-    if(y < b.min.y-0.20 || y > b.max.y+0.20) continue;
     const cx=Math.max(b.min.x,Math.min(x,b.max.x));
     const cz=Math.max(b.min.z,Math.min(z,b.max.z));
     if((x-cx)**2+(z-cz)**2 < PLAYER_RADIUS**2)return true;
@@ -434,8 +432,7 @@ function collidesWithFastback(x,z){
   if(b.isEmpty())return false;
   const px=Math.max(b.min.x,Math.min(x,b.max.x));
   const pz=Math.max(b.min.z,Math.min(z,b.max.z));
-  const ground=surfaceHeight(x,z);
-  return (ground+0.8>=b.min.y-.2 && ground<=b.max.y+.2) && ((x-px)**2+(z-pz)**2 < (PLAYER_RADIUS+.12)**2);
+  return ((x-px)**2+(z-pz)**2 < (PLAYER_RADIUS+.12)**2);
 }
 function blockedForPlayer(x,z){return collidesWithBuilding(x,z)||collidesWithFastback(x,z);}
 
@@ -1700,7 +1697,7 @@ function loadRealMap(){
     console.info('Colisores construções',buildingColliders.length);
 
     model.traverse(o=>{if(o.isMesh){o.receiveShadow=true;o.castShadow=false;o.frustumCulled=false;}});
-    scene.add(model);mapaTopoCarregado=true;
+    mapaTopoCarregado=true;
     scene.fog=new THREE.Fog(0x91c8e1,130,280);
     camera.far=1400;camera.updateProjectionMatrix();
     if(info)info.textContent='Mapa TopoExport carregado • A11 calibrada';
@@ -1763,7 +1760,7 @@ function prepareFastbackModel(car){
  if(bb.isEmpty())throw new Error('Fastback GLB sem geometria');
  const dims=bb.getSize(new THREE.Vector3());
  const longest=Math.max(dims.x,dims.z);
- const scale=5.15/Math.max(longest,0.001);
+ const scale=5.65/Math.max(longest,0.001);
  if(!Number.isFinite(scale)||scale<=0||scale>1000)throw new Error('Escala inválida da Fastback');
  const wrapper=new THREE.Group();
  // Keep all axes scaled equally: never stretch height separately.
@@ -2161,7 +2158,7 @@ function movementDebug(){
     document.body.appendChild(node);
   }
   const keys=[...pressedKeys].filter(k=>/^(Key[WASD]|Arrow|Shift)/.test(k)).join(',')||'-';
-  node.textContent=`DIAGNÓSTICO v1.0.7 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Movimento sem colisões (teste)'}`;
+  node.textContent=`DIAGNÓSTICO v1.0.7 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Colisores prédios: '+buildingColliders.length+' | Fastback: '+(fastbackObj?.visible?'sim':'não')}`;
 }
 function loop(){
   requestAnimationFrame(loop);

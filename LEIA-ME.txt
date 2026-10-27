@@ -1,8 +1,1 @@
-Tio Urso: Patrulha — v1.0.7.4
-- Fastback aumentada visualmente para ~5,15 unidades de comprimento com escala uniforme (não escala desigual).
-- Colisões experimentais por caixas de prédios (somente malhas Building) e Fastback.
-- Movimento de deslizamento por eixo X/Z ao encontrar obstáculo.
-- Usa como base a v1.0.7.3, mantendo correção de mouse e tonfa.
-
-Envie somente app.js ao GitHub, substituindo o anterior. LEIA-ME.txt é opcional.
-Atenção: colisões dependem de nomes e geometria das malhas do TopoExport. Teste no aparelho; ainda não validadas no navegador Android. Colisões não incluem detalhes de toda a praça nem portas.
+Tio Urso: Patrulha v1.0.7.5 — envie index.html e app.js juntos. Ajusta cache de JS, escala uniforme da Fastback e colisões na base geográfica. Necessário testar no PC/Android. Não exclua GLBs nem audios.
