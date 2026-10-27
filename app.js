@@ -404,7 +404,21 @@ const AUTO_RUN_OFF_PRESSURE = 0.75;
 const camPosWanted = new THREE.Vector3();
 // Spawn real narrativo: calçada diante da Central, R. Eurilemos, 530.
 // Coordenadas de jogo provisórias, até aferir a quadra por imagem aérea.
-const playerPos = new THREE.Vector3(-12,0,-8.4);
+// Marcas locais do TopoExport, feitas e aprovadas no visualizador v1.3.
+const ANCHORS = {"A11": {"x": 309.29185707683644, "z": -700.147975094181}, "P1": {"x": 253.70459033699012, "z": -748.3587325036211}, "P2": {"x": 302.9691347936312, "z": -705.6803570919856}, "P3": {"x": 366.7232511492843, "z": -638.5014328329296}, "P4": {"x": 261.3445464291965, "z": -670.6419377725564}, "P5": {"x": 222.35442568276397, "z": -705.6803570919856}, "E5": {"x": 309.55530383863663, "z": -730.4443527012062}, "Centro": {"x": 306.65738945883425, "z": -675.3839794849604}};
+// Centro da geometria original do TopoExport (calculado do bounding box do GLB).
+const GEO_CENTER = {x:487.40111351,z:-490.724742435};
+const toGame=(pos)=>({x:pos.x-GEO_CENTER.x,z:pos.z-GEO_CENTER.z});
+const a11=toGame(ANCHORS.A11);
+const playerPos = new THREE.Vector3(a11.x,0,a11.z);
+let realMapSurface=null, fastbackObj=null, fastbackBase=null;
+function surfaceHeight(x,z){
+ if(!realMapSurface)return GROUND_Y;
+ const ray=new THREE.Raycaster(new THREE.Vector3(x,300,z),new THREE.Vector3(0,-1,0),0,450);
+ const hits=ray.intersectObjects(realMapSurface,true);
+ return hits.length?hits[0].point.y+0.06:GROUND_Y;
+}
+
 const targetPos = new THREE.Vector3();
 const motion = new THREE.Vector3();
 const forward = new THREE.Vector3();
@@ -1626,10 +1640,10 @@ let mapaTopoCarregado=false;
 function buildDowntownMap(){
   // O modelo será carregado em buildScene. Ponto de início temporário.
   mapLandmarks.length=0;
-  mapLandmarks.push({title:'Ponto provisório de inspeção (NÃO é A11)',x:playerPos.x,z:playerPos.z});
-  makeCitizen('Dona Maria',-3,-7.9,0x52a47d,'maria');
-  makeCitizen('Sr. Carlos',0,15,0xe1ad6d,'carlos');
-  makeCitizen('Ana',13.2,20,0x7b94cc,'ana');
+  for(const [code,pt] of Object.entries(ANCHORS)){const local=toGame(pt); mapLandmarks.push({title:code,x:local.x,z:local.z});}
+  makeCitizen('Dona Maria',playerPos.x+7,playerPos.z+12,0x52a47d,'maria');
+  makeCitizen('Sr. Carlos',playerPos.x-4,playerPos.z+17,0xe1ad6d,'carlos');
+  makeCitizen('Ana',playerPos.x+11,playerPos.z-9,0x7b94cc,'ana');
 }
 function loadRealMap(){
   const info=document.getElementById('mapa-real-status');
@@ -1644,23 +1658,25 @@ function loadRealMap(){
     // A cota local será acertada pelo terreno sob o ponto de teste.
     model.position.y-=bounds.min.y;
     model.updateMatrixWorld(true);
-    const ray=new THREE.Raycaster(new THREE.Vector3(0,150,0),new THREE.Vector3(0,-1,0),0,250);
-    let hits=ray.intersectObject(model,true).filter(h=>h.face&&h.face.normal).map(h=>h.point.y);
-    if(hits.length){model.position.y-=Math.min(...hits)-GROUND_Y;}
+    // Nunca mover o modelo pelo raycast: deslocaria as ancoras em relacao ao mapa.
+    realMapSurface=[];
+    model.traverse(o=>{if(o.isMesh && /Ground|Road|GreenArea/i.test(o.name))realMapSurface.push(o)});
     model.traverse(o=>{if(o.isMesh){o.receiveShadow=true;o.castShadow=false;o.frustumCulled=false;}});
     scene.add(model);mapaTopoCarregado=true;
     scene.fog=new THREE.Fog(0x91c8e1,130,280);
     camera.far=1400;camera.updateProjectionMatrix();
-    if(info)info.textContent='Mapa TopoExport carregado • spawn provisório';
+    if(info)info.textContent='Mapa TopoExport carregado • A11 calibrada';
+    if(player && !started){player.position.set(playerPos.x,surfaceHeight(playerPos.x,playerPos.z),playerPos.z);}
+    updateCalibratedMarkers();
   },undefined,err=>{console.error('Erro mapa real',err);if(info)info.textContent='ERRO: mapa GLB não carregou';});
 }
 
 // v1.0 - assets de terceiros, carregados sem bloquear o protagonista.
 const NPC_ASSETS=[
- {file:'Male_Casual.fbx',x:-3,z:-7.9},
- {file:'Female_Casual.fbx',x:0,z:15},
- {file:'Male_Suit.fbx',x:13.2,z:20},
- {file:'Female_Dress.fbx',x:9,z:-16}
+ {file:'Male_Casual.fbx',x:playerPos.x+7,z:playerPos.z+12},
+ {file:'Female_Casual.fbx',x:playerPos.x-4,z:playerPos.z+17},
+ {file:'Male_Suit.fbx',x:playerPos.x+11,z:playerPos.z-9},
+ {file:'Female_Dress.fbx',x:playerPos.x-9,z:playerPos.z-14}
 ];
 const VEHICLE_ASSETS=[
  {file:'NormalCar1.fbx',x:-19,z:19,rot:1.57,color:0x8bbaac},
@@ -1688,6 +1704,24 @@ function npcInfo(message){
  if(!badge){badge=document.createElement('div');badge.id='npc-load-info';badge.style.cssText='position:fixed;left:8px;top:8px;z-index:20;color:#fff;background:#082239c9;padding:5px 8px;border-radius:6px;font:11px sans-serif;pointer-events:none';document.body.appendChild(badge);}
  badge.textContent=message;
 }
+
+// Calibração independente da Fastback. E5 é estacionamento dos fundos: NUNCA usar como vaga.
+const PARKING_KEY='tio-urso-fastback-v104';
+function readFastbackSpot(){try{return JSON.parse(localStorage.getItem(PARKING_KEY)||'null')}catch{return null}}
+function applyFastbackSpot(pt){
+ if(!fastbackObj||!Number.isFinite(pt.x)||!Number.isFinite(pt.z))return;
+ if(!fastbackObj.parent)prepareExternalModel(fastbackObj,1.65,pt.x,pt.z,pt.rot||0);
+ fastbackObj.position.x=pt.x;fastbackObj.position.z=pt.z;
+ fastbackObj.position.y=surfaceHeight(pt.x,pt.z);fastbackObj.rotation.y=(pt.rot||0);fastbackObj.visible=true;
+}
+function updateCalibratedMarkers(){
+ if(!scene)return;
+ for(const code of ['A11','P1','P2','P3','P4','P5','E5']){
+  const p=toGame(ANCHORS[code]);const label=labelSprite(code,'#ffffff',code==='A11'?'#15705c':'#263c59',2.5,.55);
+  label.position.set(p.x,surfaceHeight(p.x,p.z)+4,p.z);scene.add(label);
+ }
+}
+
 function populateCity(){
  const fbx=new FBXLoader();
  const loadCount=NPC_ASSETS.length;
@@ -1724,18 +1758,21 @@ function populateCity(){
    }
    npcLoadStatus.ok++;npcInfo('NPCs carregados: '+npcLoadStatus.ok+'/'+loadCount+(npcLoadStatus.failed?' • falhas: '+npcLoadStatus.failed:''));
  },undefined,error=>{npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • falhas: '+npcLoadStatus.failed);console.error('Falha FBX:',spec.file,error);}));
- VEHICLE_ASSETS.forEach(spec=>fbx.load('./'+spec.file+'?v=101',model=>prepareExternalModel(model,1.5,spec.x,spec.z,spec.rot),undefined,e=>console.warn('Carro indisponível:',spec.file,e)));
+ // Carros civis aguardam vagas identificadas na planta: não espalhar em locais aleatórios.
  // Fastback retorna em posição PROVISÓRIA de inspeção, fora de sua vaga definitiva.
  new GLTFLoader().load('./fastback-gm.glb?v=103',g=>{
    const car=g.scene;
-   if(prepareExternalModel(car,1.65,8,-8,Math.PI/2)){
-     npcInfo('Modelos 3D carregando • Fastback no ponto provisório');
-   }
+   // Fastback somente no estacionamento FRONTAL: o usuário seleciona a vaga.
+   fastbackObj=car;fastbackBase=car;
+   const saved=readFastbackSpot();
+   if(saved) applyFastbackSpot(saved);
+   else {car.visible=false;prepareExternalModel(car,1.65,playerPos.x,playerPos.z,0);car.visible=false;}
+
  },undefined,e=>console.warn('Fastback indisponível',e));
 }
 
 const ambientMixers=[];
-const SAVE_V100='tio-urso-patrulha-save-v103-mapa-real';
+const SAVE_V100='tio-urso-patrulha-save-v104-ancoras-reais';
 let selectedPlatform='auto';
 function readSession(){try{return JSON.parse(localStorage.getItem(SAVE_V100)||'null');}catch{return null;}}
 function saveSession(){
@@ -1746,7 +1783,7 @@ function saveSession(){
 function restoreSession(){
  const s=readSession();if(!s)return false;
  for(const k of ['x','z','rotation','xp'])if(!Number.isFinite(Number(s[k])))return false;
- player.position.set(Number(s.x),GROUND_Y,Number(s.z));player.rotation.y=Number(s.rotation);
+ player.position.set(Number(s.x),surfaceHeight(Number(s.x),Number(s.z)),Number(s.z));player.rotation.y=Number(s.rotation);
  xp=Number(s.xp);talked=new Set((s.talked||[]).filter(v=>typeof v==='string'));
  camYaw=Number.isFinite(s.camYaw)?s.camYaw:camYaw;
  camPitch=Number.isFinite(s.camPitch)?s.camPitch:camPitch;
@@ -1755,7 +1792,7 @@ function restoreSession(){
 }
 function resetSession(){
  xp=0;talked=new Set();equipped='punhos';
- player.position.copy(playerPos);player.position.y=GROUND_Y;player.rotation.y=0;
+ player.position.copy(playerPos);player.position.y=surfaceHeight(playerPos.x,playerPos.z);player.rotation.y=0;
  camYaw=Math.PI;camPitch=.26;try{localStorage.removeItem('tio-urso-patrulha-demo-v01');}catch(e){}
  updateHud();saveSession();
 }
@@ -1792,7 +1829,7 @@ function buildScene(){
   buildDowntownMap();
   loadRealMap();
   populateCity();
-  player=new THREE.Group();player.position.copy(playerPos);player.position.y=GROUND_Y;scene.add(player);
+  player=new THREE.Group();player.position.copy(playerPos);player.position.y=surfaceHeight(playerPos.x,playerPos.z);scene.add(player);
   createGroundShadow();makeAttackEffect();makeTonfa();
   clock=new THREE.Clock();
   // Apenas o cenário físico é alvo visual da mira, nunca o Tio Urso.
@@ -1974,7 +2011,8 @@ function update(dt){
   // Não alteramos a orientação da tonfa a cada quadro: o osso da mão já faz isso.
   // A tonfa guardada e o coldre estão na raiz do modelo; o bastão equipado fica na mão.
   // O modelo permanece assentado no piso, sem salto artificial.
-  player.position.y=GROUND_Y;
+  if(mapaTopoCarregado && (Math.floor(animationTime*10)%3===0)) player.position.y=surfaceHeight(player.position.x,player.position.z);
+  else if(!mapaTopoCarregado)player.position.y=GROUND_Y;
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}
   // A sombra suave fica sob o quadril efetivo (inclusive nas animações com
   // deslocamento do root/hips); a sombra de luz acompanha a malha em tempo real.
@@ -2200,3 +2238,28 @@ try{
   el('fatal').hidden=false;
   el('fatal-reason').textContent='Confira sua conexão com a internet e tente novamente. O carregamento das bibliotecas 3D requer acesso à rede.';
 }
+
+// Ferramenta opcional: escolha da vaga da Fastback no próprio minimapa ampliado.
+(function setupFastbackCalibration(){
+ const panel=document.getElementById('bigmap-panel');if(!panel)return;
+ const menu=document.createElement('div');menu.style.cssText='display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:95vw';
+ menu.innerHTML='<button id="park-select">📍 Marcar vaga da Fastback</button><button id="park-left">↶ Girar -15°</button><button id="park-right">↷ Girar +15°</button><button id="park-copy">Copiar vaga</button>';
+ panel.appendChild(menu);
+ let parkingMode=false;
+ const el2=(id)=>document.getElementById(id);
+ el2('park-select').onclick=()=>{parkingMode=!parkingMode;el2('park-select').textContent=parkingMode?'Toque na vaga EXCLUSIVA no mapa':'📍 Marcar vaga da Fastback'};
+ const canvas=el2('bigmap-canvas');canvas.addEventListener('click',e=>{
+  if(!parkingMode||!player)return;
+  const rect=canvas.getBoundingClientRect();const xx=(e.clientX-rect.left)/rect.width*mini.width,zz=(e.clientY-rect.top)/rect.height*mini.height;
+  // Mesmo calculo usado pelo minimapa (1.54 pixel por unidade real relativa ao Tio Urso).
+  const spot={x:player.position.x+(xx-mini.width/2)/1.54,z:player.position.z+(zz-mini.height/2)/1.54,rot:0};
+  try{localStorage.setItem(PARKING_KEY,JSON.stringify(spot))}catch{}
+  applyFastbackSpot(spot);parkingMode=false;el2('park-select').textContent='📍 Marcar vaga da Fastback';
+  alert('Vaga marcada. Confira a viatura no cenário; ajuste girando ±15°.');
+ });
+ for(const [id,amount] of [['park-left',-15],['park-right',15]])el2(id).onclick=()=>{
+  const spot=readFastbackSpot();if(!spot){alert('Marque uma vaga primeiro.');return;}
+  spot.rot=(spot.rot||0)+amount*Math.PI/180;localStorage.setItem(PARKING_KEY,JSON.stringify(spot));applyFastbackSpot(spot);
+ };
+ el2('park-copy').onclick=()=>{const spot=readFastbackSpot();if(!spot){alert('Marque uma vaga primeiro.');return;}const exportSpot={source:'topoexport-71F678',fastback:{x:spot.x+GEO_CENTER.x,z:spot.z+GEO_CENTER.z,rotacaoGraus:+((spot.rot||0)*180/Math.PI).toFixed(2)}};navigator.clipboard?.writeText(JSON.stringify(exportSpot,null,2));alert('Coordenadas da vaga copiadas.');};
+})();

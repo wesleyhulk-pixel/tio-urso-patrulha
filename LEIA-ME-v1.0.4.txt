@@ -1,0 +1,5 @@
+Tio Urso Patrulha v1.0.4 - coordenadas reais
+A11 P1-P5 E5 e Centro: marcacoes corrigidas v1.3 no topoexport-71F678.
+Fastback: NÃO vai para E5. Abra o minimapa ampliado, escolha Marcar vaga da Fastback e toque numa vaga exclusiva no estacionamento frontal, conforme a referência real. Use girar e Copiar vaga.
+Jogo permanece experimental: altura do terreno e compatibilidade dos FBX devem ser verificadas no Android.
+Não apagar os assets já existentes do GitHub.
