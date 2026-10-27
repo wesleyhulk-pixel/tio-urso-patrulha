@@ -1,3 +1,4 @@
+// v1.0.1: correção de carregamento FBX e visualizador do mapa exportado.
 // v0.9.1: refinamento com imagem aérea: Avenida Arapongas a oeste, Flamingos a leste,
 // Falcão a norte, Drongo a sul e Eurilemos ligando as extremidades.
 // Praça, igreja, coreto, conjunto institucional e calçadas reorganizados.
@@ -1734,26 +1735,54 @@ function prepareExternalModel(model, height, x,z,rotation=0){
  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.frustumCulled=false;}});
  scene.add(model);return true;
 }
+// v1.0.1: os modelos FBX agora entram dentro do grupo de interação,
+// mantendo as posições e permitindo que o jogador converse normalmente.
+const npcLoadStatus={ok:0,failed:0};
+function npcInfo(message){
+ let badge=document.getElementById('npc-load-info');
+ if(!badge){badge=document.createElement('div');badge.id='npc-load-info';badge.style.cssText='position:fixed;left:8px;top:8px;z-index:20;color:#fff;background:#082239c9;padding:5px 8px;border-radius:6px;font:11px sans-serif;pointer-events:none';document.body.appendChild(badge);}
+ badge.textContent=message;
+}
 function populateCity(){
  const fbx=new FBXLoader();
- NPC_ASSETS.forEach((spec,i)=>fbx.load('./'+spec.file+'?v=100',model=>{
-   // Coloca os humanos detalhados no mesmo lugar dos 3 NPCs da primeira missão,
-   // sem remover a interação já existente.
-   if(prepareExternalModel(model,1.72,spec.x,spec.z)){
-     if(i<3){const dummy=citizenNodes[i]?.citizen;if(dummy)dummy.visible=false;
-       // A placa de interação continua visível sobre o novo personagem.
-       const flag=citizenNodes[i]?.flag;
-       if(flag){flag.visible=true;flag.position.y=2.35;model.add(flag);citizenNodes[i].citizen=model;}
+ const loadCount=NPC_ASSETS.length;
+ npcInfo('Carregando NPCs 0/'+loadCount);
+ NPC_ASSETS.forEach((spec,i)=>fbx.load('./'+spec.file+'?v=101',model=>{
+   const bounds=new THREE.Box3().setFromObject(model);
+   const size=bounds.getSize(new THREE.Vector3());
+   if(bounds.isEmpty()||!Number.isFinite(size.y)||size.y<.001){npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • erro de geometria');return;}
+   const factor=1.70/size.y;
+   const center=bounds.getCenter(new THREE.Vector3());
+   // O FBX pode vir em centímetros, distante da origem ou com pivô elevado.
+   const wrapper=new THREE.Group();
+   model.scale.setScalar(factor);
+   model.position.set(-center.x*factor, -bounds.min.y*factor, -center.z*factor);
+   model.traverse(o=>{
+     if(o.isMesh){o.frustumCulled=false;o.castShadow=true;o.receiveShadow=true;
+       if(o.material){for(const m of (Array.isArray(o.material)?o.material:[o.material])){m.side=THREE.DoubleSide;m.needsUpdate=true;}}
      }
-     const animations=model.animations||[];
-     if(animations.length){const mixer=new THREE.AnimationMixer(model); const chosen=animations.find(a=>/idle|stand/i.test(a.name))||animations[0];mixer.clipAction(chosen).play();ambientMixers.push(mixer);}
+   });
+   wrapper.add(model);
+   if(i<3){
+     const info=citizenNodes[i];const dummy=info.citizen;
+     // Retém o grupo, seu rótulo e coordenadas para interações e minimapa.
+     for(const child of [...dummy.children])if(child!==info.flag)dummy.remove(child);
+     dummy.add(wrapper);
+   }else{
+     wrapper.position.set(spec.x,.10,spec.z);scene.add(wrapper);
    }
- },undefined,e=>console.warn('NPC indisponível:',spec.file,e)));
- VEHICLE_ASSETS.forEach(spec=>fbx.load('./'+spec.file+'?v=100',model=>prepareExternalModel(model,1.5,spec.x,spec.z,spec.rot),undefined,e=>console.warn('Carro indisponível:',spec.file,e)));
- new GLTFLoader().load('./fastback-gm.glb?v=100',gltf=>{
-   prepareExternalModel(gltf.scene,1.67,-14,-14,Math.PI/2);
- },undefined,e=>console.warn('Fastback indisponível:',e));
+   const animations=model.animations||[];
+   if(animations.length){
+     const mixer=new THREE.AnimationMixer(model);
+     const chosen=animations.find(c=>/idle|stand|breath/i.test(c.name))||animations[0];
+     mixer.clipAction(chosen).play();ambientMixers.push(mixer);
+   }
+   npcLoadStatus.ok++;npcInfo('NPCs carregados: '+npcLoadStatus.ok+'/'+loadCount+(npcLoadStatus.failed?' • falhas: '+npcLoadStatus.failed:''));
+ },undefined,error=>{npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • falhas: '+npcLoadStatus.failed);console.error('Falha FBX:',spec.file,error);}));
+ VEHICLE_ASSETS.forEach(spec=>fbx.load('./'+spec.file+'?v=101',model=>prepareExternalModel(model,1.5,spec.x,spec.z,spec.rot),undefined,e=>console.warn('Carro indisponível:',spec.file,e)));
+ new GLTFLoader().load('./fastback-gm.glb?v=101',gltf=>prepareExternalModel(gltf.scene,1.67,-14,-14,Math.PI/2),undefined,e=>console.warn('Fastback indisponível:',e));
 }
+
 const ambientMixers=[];
 const SAVE_V100='tio-urso-patrulha-save-v100';
 let selectedPlatform='auto';

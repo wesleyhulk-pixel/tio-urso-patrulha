@@ -1,0 +1,1 @@
+Tio Urso Patrulha v1.0.1: substitua index.html e app.js; adicione mapa-real.html e mapa-real.glb. Mantenha todos os FBX, GLBs e sons anteriores. Correção da hierarquia dos NPCs, diagnóstico de carregamento e visualizador independente da geometria real TopoExport. O mapa real ainda NÃO substituiu a quadra fictícia no jogo; primeiro localize a praça no visualizador.
