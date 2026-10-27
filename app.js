@@ -70,7 +70,7 @@ const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
 // v1.0.5: limite ampliado para cobrir todo o GLB (~1 km), inclusive a recepção A11.
 // Antes o spawn (-178, -209) estava fora de LIMIT=125, travando WASD e joystick.
-const LIMIT = 650;
+const LIMIT = 650; // não aplicado ao teste de deslocamento v1.0.6
 // A configuração abaixo permite ajustar o mapa depois com a foto aérea.
 // As coordenadas são LOCAIS ao jogo, não latitudes/longitudes reais.
 const MAPA_VERSAO = "CENTRO · MATRIZ / CENTRAL — SATÉLITE v0.9.1";
@@ -1952,8 +1952,10 @@ function update(dt){
   if(velocitySmooth.lengthSq()<.004)velocitySmooth.set(0,0,0);
   const x=player.position.x+velocitySmooth.x*dt;
   const z=player.position.z+velocitySmooth.z*dt;
-  if(!isBlocked(x,player.position.z))player.position.x=x;else velocitySmooth.x=0;
-  if(!isBlocked(player.position.x,z))player.position.z=z;else velocitySmooth.z=0;
+  // TEMPORÁRIO: deslocamento direto para identificar se as colisões antigas travam o personagem.
+  // Não é a implementação final de colisão com os prédios reais.
+  if(Number.isFinite(x))player.position.x=x;
+  if(Number.isFinite(z))player.position.z=z;
   const speed=velocitySmooth.length();
   walking=speed>.12;
   if(walking || aiming){
@@ -2085,11 +2087,29 @@ function drawMap(){
   c.fillStyle='#fff';c.strokeStyle='#163349';c.lineWidth=2;
   c.beginPath();c.moveTo(0,-9);c.lineTo(-6,7);c.lineTo(6,7);c.closePath();c.fill();c.stroke();c.restore();
 }
+// v1.0.6: diagnóstico observável de teclado/joystick e erro por quadro.
+let movementDebugFrames=0;
+let movementLastError='';
+function movementDebug(){
+  let node=document.getElementById('movement-diagnostic');
+  if(!node){
+    node=document.createElement('div');node.id='movement-diagnostic';
+    node.style.cssText='position:fixed;top:4px;left:4px;z-index:99999;background:rgba(0,0,0,.75);color:#fff;font:12px monospace;padding:6px 8px;border-radius:5px;max-width:85vw;pointer-events:none;white-space:pre-wrap';
+    document.body.appendChild(node);
+  }
+  const keys=[...pressedKeys].filter(k=>/^(Key[WASD]|Arrow|Shift)/.test(k)).join(',')||'-';
+  node.textContent=`DIAGNÓSTICO v1.0.6 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Movimento sem colisões (teste)'}`;
+}
 function loop(){
   requestAnimationFrame(loop);
-  const dt=Math.min(clock.getDelta(),.05);
-  if(started)update(dt);
-  renderer.render(scene,camera);
+  const dt=Math.max(.001,Math.min(clock.getDelta(),.05));
+  try {if(started)update(dt);}catch(e){
+    const msg=(e?.message||String(e));
+    if(msg!==movementLastError)console.error('Falha no update:',e);
+    movementLastError=msg;
+  }
+  try{renderer.render(scene,camera);}catch(e){movementLastError='render: '+(e?.message||e);}
+  if(++movementDebugFrames%12===0)movementDebug();
 }
 function installControls(){
   const stick=el('stick'),zone=el('joystick');let activePointer=null;

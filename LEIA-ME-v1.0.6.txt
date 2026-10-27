@@ -1,0 +1,1 @@
+Tio Urso v1.0.6 — TESTE DE MOVIMENTO. Substitua index.html e app.js no GitHub. O painel mostra teclas, joystick, X/Z e erro de execução. Colisões temporariamente desativadas; não é versão final. Compartilhe captura da tela com diagnóstico após pressionar W.
