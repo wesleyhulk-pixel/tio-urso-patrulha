@@ -1703,12 +1703,15 @@ function prepareExternalModel(model, height, x,z,rotation=0){
 const npcLoadStatus={ok:0,failed:0};
 function npcInfo(message){
  let badge=document.getElementById('npc-load-info');
- if(!badge){badge=document.createElement('div');badge.id='npc-load-info';badge.style.cssText='position:fixed;left:8px;top:8px;z-index:20;color:#fff;background:#082239c9;padding:5px 8px;border-radius:6px;font:11px sans-serif;pointer-events:none';document.body.appendChild(badge);}
+ if(!badge){badge=document.createElement('div');badge.id='npc-load-info';badge.style.cssText='position:fixed;left:8px;bottom:8px;z-index:20;color:#fff;background:#082239c9;padding:5px 8px;border-radius:6px;font:11px sans-serif;pointer-events:none';document.body.appendChild(badge);}
  badge.textContent=message;
 }
 
 // Calibração independente da Fastback. E5 é estacionamento dos fundos: NUNCA usar como vaga.
 const PARKING_KEY='tio-urso-fastback-v104';
+// Posicionamento PROVISÓRIO junto à fachada A11: NÃO é vaga definitiva.
+const awayFront=new THREE.Vector2(ANCHORS.A11.x-ANCHORS.P2.x, ANCHORS.A11.z-ANCHORS.P2.z).normalize();
+const FASTBACK_PREVIEW_SPOT={x:a11.x+awayFront.x*12,z:a11.z+awayFront.y*12,rot:0};
 function readFastbackSpot(){try{return JSON.parse(localStorage.getItem(PARKING_KEY)||'null')}catch{return null}}
 function applyFastbackSpot(pt){
  if(!fastbackObj||!Number.isFinite(pt.x)||!Number.isFinite(pt.z))return;
@@ -1719,7 +1722,7 @@ function applyFastbackSpot(pt){
 function updateCalibratedMarkers(){
  if(!scene)return;
  for(const code of ['A11','P1','P2','P3','P4','P5','E5']){
-  const p=toGame(ANCHORS[code]);const label=labelSprite(code,'#ffffff',code==='A11'?'#15705c':'#263c59',2.5,.55);
+  const p=toGame(ANCHORS[code]);const label=labelSprite(code==='P2'?'P2 GUARDA MUNICIPAL':code,'#ffffff',code==='A11'?'#15705c':'#263c59',2.5,.55);
   label.position.set(p.x,surfaceHeight(p.x,p.z)+4,p.z);scene.add(label);
  }
 }
@@ -1759,7 +1762,7 @@ function populateCity(){
      mixer.clipAction(chosen).play();ambientMixers.push(mixer);
    }
    npcLoadStatus.ok++;npcInfo('NPCs carregados: '+npcLoadStatus.ok+'/'+loadCount+(npcLoadStatus.failed?' • falhas: '+npcLoadStatus.failed:''));
- },undefined,error=>{npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • falhas: '+npcLoadStatus.failed);console.error('Falha FBX:',spec.file,error);}));
+ },undefined,error=>{npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • falhas: '+npcLoadStatus.failed+' ('+spec.file+')');console.error('Falha FBX:',spec.file,error);}));
  // Carros civis aguardam vagas identificadas na planta: não espalhar em locais aleatórios.
  // Fastback retorna em posição PROVISÓRIA de inspeção, fora de sua vaga definitiva.
  new GLTFLoader().load('./fastback-gm.glb?v=103',g=>{
@@ -1768,7 +1771,7 @@ function populateCity(){
    fastbackObj=car;fastbackBase=car;
    const saved=readFastbackSpot();
    if(saved) applyFastbackSpot(saved);
-   else {car.visible=false;prepareExternalModel(car,1.65,playerPos.x,playerPos.z,0);car.visible=false;}
+   else {applyFastbackSpot(FASTBACK_PREVIEW_SPOT);npcInfo('Fastback: posição de teste junto à GM • ajuste vaga no minimapa');}
 
  },undefined,e=>console.warn('Fastback indisponível',e));
 }
@@ -2098,7 +2101,7 @@ function movementDebug(){
     document.body.appendChild(node);
   }
   const keys=[...pressedKeys].filter(k=>/^(Key[WASD]|Arrow|Shift)/.test(k)).join(',')||'-';
-  node.textContent=`DIAGNÓSTICO v1.0.6 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Movimento sem colisões (teste)'}`;
+  node.textContent=`DIAGNÓSTICO v1.0.7 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Movimento sem colisões (teste)'}`;
 }
 function loop(){
   requestAnimationFrame(loop);
@@ -2265,7 +2268,7 @@ try{
 (function setupFastbackCalibration(){
  const panel=document.getElementById('bigmap-panel');if(!panel)return;
  const menu=document.createElement('div');menu.style.cssText='display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:95vw';
- menu.innerHTML='<button id="park-select">📍 Marcar vaga da Fastback</button><button id="park-left">↶ Girar -15°</button><button id="park-right">↷ Girar +15°</button><button id="park-copy">Copiar vaga</button>';
+ menu.innerHTML='<button id="park-select">📍 Marcar vaga da Fastback</button><button id="park-left">↶ Girar -15°</button><button id="park-right">↷ Girar +15°</button><button id="park-copy">Copiar vaga</button><button id="park-xminus">← 1 m</button><button id="park-xplus">1 m →</button><button id="park-zminus">↑ 1 m</button><button id="park-zplus">1 m ↓</button>';
  panel.appendChild(menu);
  let parkingMode=false;
  const el2=(id)=>document.getElementById(id);
@@ -2283,5 +2286,10 @@ try{
   const spot=readFastbackSpot();if(!spot){alert('Marque uma vaga primeiro.');return;}
   spot.rot=(spot.rot||0)+amount*Math.PI/180;localStorage.setItem(PARKING_KEY,JSON.stringify(spot));applyFastbackSpot(spot);
  };
- el2('park-copy').onclick=()=>{const spot=readFastbackSpot();if(!spot){alert('Marque uma vaga primeiro.');return;}const exportSpot={source:'topoexport-71F678',fastback:{x:spot.x+GEO_CENTER.x,z:spot.z+GEO_CENTER.z,rotacaoGraus:+((spot.rot||0)*180/Math.PI).toFixed(2)}};navigator.clipboard?.writeText(JSON.stringify(exportSpot,null,2));alert('Coordenadas da vaga copiadas.');};
+ for(const [id,dx,dz] of [['park-xminus',-1,0],['park-xplus',1,0],['park-zminus',0,-1],['park-zplus',0,1]]) el2(id).onclick=()=>{
+   const spot=readFastbackSpot()||{...FASTBACK_PREVIEW_SPOT};
+   spot.x+=dx;spot.z+=dz;
+   localStorage.setItem(PARKING_KEY,JSON.stringify(spot));applyFastbackSpot(spot);
+ };
+ el2('park-copy').onclick=()=>{const spot=readFastbackSpot()||FASTBACK_PREVIEW_SPOT;const exportSpot={source:'topoexport-71F678',fastback:{x:spot.x+GEO_CENTER.x,z:spot.z+GEO_CENTER.z,rotacaoGraus:+((spot.rot||0)*180/Math.PI).toFixed(2)}};navigator.clipboard?.writeText(JSON.stringify(exportSpot,null,2));alert('Coordenadas da vaga copiadas.');};
 })();
