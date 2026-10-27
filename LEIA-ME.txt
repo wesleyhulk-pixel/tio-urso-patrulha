@@ -1,1 +1,1 @@
-Envie quadra-real.html ao repositorio atual. O arquivo mapa-topoexport.glb ja deve estar na raiz do GitHub. Acesse /quadra-real.html. Isto NAO altera index.html nem app.js. Pontos cadastrados pelo usuario conforme topoexport-71F678.
+Quadra real v1.3 — substitua apenas quadra-real.html no repositório. Selecione um código, toque na vista aérea, copie o JSON. O mapa GLB existente não é modificado.
