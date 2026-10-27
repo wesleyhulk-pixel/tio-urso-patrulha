@@ -1,0 +1,9 @@
+Tio Urso v1.0.3 — TESTE DE INTEGRAÇÃO REAL (NÃO É MAPA FINAL)
+
+NOVIDADE: geometria TopoExport carregada diretamente no jogo; as edificações inventadas da v1.0.2 foram retiradas.
+NPCs: carregamento de quatro FBX, sem bonecos geométricos azuis de reserva.
+Fastback: carregada em posição provisória para teste (AINDA NÃO É vaga real da Guarda).
+ATENÇÃO: ponto inicial do jogador não coincide ainda com a recepção A11, e a posição da quadra marcada ainda precisa de alinhamento geográfico. O mapa foi centralizado na geometria exportada para teste.
+Não removemos arquivos anteriores do GitHub. SUBSTITUA SOMENTE arquivos de mesmo nome, INCLUINDO TODOS ESTES ARQUIVOS do ZIP.
+Por segurança, o salvamento de mapa desta versão usa chave local diferente da v1.0.2.
+Próximas correções: identificação geográfica da quadra, terreno/colisões/cota do piso, animação dos NPCs, ajustes finais de estacionamentos.

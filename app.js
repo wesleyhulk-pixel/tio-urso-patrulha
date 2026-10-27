@@ -68,7 +68,7 @@ const PAW_ADJUST_MODE = new URLSearchParams(location.search).has('pata');
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
-const LIMIT = 57;
+const LIMIT = 125;
 // A configuração abaixo permite ajustar o mapa depois com a foto aérea.
 // As coordenadas são LOCAIS ao jogo, não latitudes/longitudes reais.
 const MAPA_VERSAO = "CENTRO · MATRIZ / CENTRAL — SATÉLITE v0.9.1";
@@ -730,6 +730,8 @@ function makeCitizen(name, x,z,shirtColor,id) {
     const leg=new THREE.Mesh(new THREE.CylinderGeometry(.10,.11,.73,8),pants);leg.position.set(s*.13,.38,0);citizen.add(leg);
     const arm=new THREE.Mesh(new THREE.CylinderGeometry(.085,.09,.62,8),skin);arm.position.set(s*.34,1.04,0);citizen.add(arm);
   }
+  // Remover figuras provisórias: só NPCs FBX de verdade serão visíveis.
+  for(const obj of [...citizen.children])citizen.remove(obj);
   citizen.position.set(x,.1,z);scene.add(citizen);
   const flag=labelSprite(talked.has(id)?'✓ OBRIGADO!':'💬 CONVERSAR','#f8f7e9','#234e67',2.0,.42);
   flag.position.y=2.35;citizen.add(flag);
@@ -1619,95 +1621,38 @@ function makeParkingBay(x,z,w,d,title){
   sign.position.set(x,2.4,z+d/2+.5);scene.add(sign);
   mapLandmarks.push({title,x,z});
 }
+// v1.0.3 — base 3D importada do TopoExport; SEM edifícios inventados.
+let mapaTopoCarregado=false;
 function buildDowntownMap(){
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(138,138),standard(0x91a17f));
-  floor.rotation.x=-Math.PI/2;floor.position.y=-.018;floor.receiveShadow=true;scene.add(floor);
-
-  // Perímetro orientado com o satélite. Escalas dos trechos AINDA aproximadas.
-  for(const st of MAPA_RUAS){
-    if(st.eixo==='z')road(st.pos,0,st.largura,120);
-    else road(0,st.pos,120,st.largura);
-  }
-  // Calçadas interrompidas nos cruzamentos: não cobrir o asfalto da via transversal.
-  const roadZ=[-42,-2.5,42],roadX=[-43,43];
-  const segZ=[[-57,-47],[-36,-8],[3,36],[47,57]];
-  const segX=[[-57,-49],[-37,37],[49,57]];
-  for(const st of MAPA_RUAS){
-    const offset=st.largura/2+1.35;
-    for(const side of [-1,1]){
-      if(st.eixo==='z'){
-        for(const [a,b] of segZ)townPaving(st.pos+side*offset,(a+b)/2,2.4,b-a,0xd2c9ba,.066);
-      }else{
-        for(const [a,b] of segX)townPaving((a+b)/2,st.pos+side*offset,b-a,2.4,0xd2c9ba,.066);
-      }
-    }
-    for(let d=-53;d<=53;d+=8.0){
-      if(st.eixo==='z')townLine(st.pos,d,.10,2.85,0xe8d7a2);
-      else townLine(d,st.pos,2.85,.10,0xe8d7a2);
-    }
-  }
-  // Faixas nas travessias de entrada da praça e proximidade da Central.
-  for(const x of [-28,-11,8,26])paveCrosswalk(x,-2.5,true);
-  for(const x of [-14,19])paveCrosswalk(x,42,true);
-  paveCrosswalk(-43,18,false);paveCrosswalk(43,-15,false);
-
-  // Praça é a área de convivência ao SUL da Rua Eurilemos, junto à igreja.
-  townPaving(0,21.0,74.8,31.5,0xd9d1bc,.077);
-  townPath(-3,20,4.0,30.0);
-  townPath(6,21.7,57.0,3.8);
-  townPath(8.0,31.7,44.0,2.0);
-  // Canteiros, caminho e árvores deixam o centro transitável.
-  for(const [x,z] of [[-5,9],[-4,32],[7,10],[28,9],[32,24],[-10,33],[-34,8],[11,36]]){
-    const soil=box(2.65,.07,2.65,0x7e9f69,x,.12,z);soil.receiveShadow=true;tree(x,z);
-  }
-  for(const [x,z,a] of [[5,13,0],[10,26,Math.PI/2],[-7,26,0],[30,30,Math.PI],[25,16,Math.PI/2]])townBench(x,z,a);
-  buildChurch();buildGazebo();makeKiosk(25,11);
-  const plazaSign=labelSprite('PRAÇA DA MATRIZ','#ffffff','#39634d',4.2,.55);
-  plazaSign.position.set(0,2.7,9.3);scene.add(plazaSign);
-  mapLandmarks.push({title:'Praça da Matriz',x:0,z:21});
-
-  // BLOCO INSTITUCIONAL AO NORTE DA EURILEMOS.
-  // Central à margem da rua. Jogador nasce na calçada em frente ao acesso.
-  const central=cityBlock(-12,-18,15,12,5.3,0xb5c2c3,'CENTRAL DA GUARDA','south');
-  const band=new THREE.Mesh(new THREE.BoxGeometry(14.6,.64,.10),standard(0x284e77));
-  band.position.set(0,4.35,6.09);central.add(band);
-  const entrance=new THREE.Mesh(new THREE.BoxGeometry(2.3,2.7,.11),standard(0x2f5767,.30));
-  entrance.position.set(0,1.35,6.08);central.add(entrance);
-  const gmSign=labelSprite('GUARDA MUNICIPAL','#ffffff','#18416a',3.9,.46);
-  gmSign.position.set(-12,3.1,-11.0);scene.add(gmSign);
-  const startRing=new THREE.Mesh(new THREE.RingGeometry(.5,.68,24),new THREE.MeshBasicMaterial({color:0x62dfb0,side:THREE.DoubleSide}));
-  startRing.rotation.x=-Math.PI/2;startRing.position.set(playerPos.x,.094,playerPos.z);scene.add(startRing);
-  const startSign=labelSprite('INÍCIO DO PLANTÃO','#ffffff','#12644f',3.5,.48);
-  startSign.position.set(playerPos.x,2.4,playerPos.z);scene.add(startSign);
-  mapLandmarks.push({title:'Spawn — Central R. Eurilemos, 530',x:playerPos.x,z:playerPos.z});
-  makeParkingBay(7,-13.5,14.2,9.8,'ESTACIONAMENTO GMA');
-  townPaving(6,-8.2,4,4,0xb1ad9f,.085);
-  mapLandmarks.push({title:'Entrada do estacionamento da Guarda',x:6,z:-8.2});
-
-  // Fachadas aproximadas, agrupadas por posição relativa mostrada pelo usuário.
-  cityBlock(-29,-24,14,12,5.5,0xd6d0c6,'RECEITA ESTADUAL','north');
-  cityBlock(-14,-33,9.8,6.7,3.6,0xe3c5a5,"DONALD'S LANCHES",'north');
-  cityBlock(8,-29,14.5,11,6.5,0x83a8c4,'SEC. EDUCAÇÃO','south');
-  cityBlock(27,-28.5,15,12,6.0,0xdadfe4,'CORREIOS','east');
-
-  // Fundos dos Correios e da Secretaria: área de carga/descarga ilustrativa.
-  townPaving(26,-13.4,16.4,9.1,0x92928a,.069);
-  for(const x of [20,23.5,27])townLine(x,-13.3,.11,7.2,0xe5d6ad);
-  const yardSign=labelSprite('ACESSO SERVIÇO • CORREIOS','#fff','#3c5364',4.0,.43);
-  yardSign.position.set(26,2.5,-9.0);scene.add(yardSign);
-  mapLandmarks.push({title:'Fundos Correios / Educação',x:26,z:-13});
-  townPaving(34.9,-13.5,3.3,5.8,0xb1ada4,.084);
-
-  // Entorno: massas neutras além do perímetro imediato, sem inventar fachadas.
-  cityBlock(-22,-51.5,14.0,7.4,4.8,0xc8c0b5,'COMÉRCIO','south');
-  cityBlock(21,-51.5,13.0,7.4,5.1,0xbccac4,'SERVIÇOS','south');
-  cityBlock(-22,51.6,14.0,7.0,4.8,0xc8c0b5,'COMÉRCIO','north');
-  cityBlock(23,51.5,13.0,7.0,4.7,0xc5c8c2,'COMÉRCIO','north');
-
-  for(const [x,z] of [[-36,-25],[-36,18],[36,-20],[36,18],[-24,-7],[18,-7],[8,33]])simpleLight(x,z);
-  makeCitizen('Dona Maria',-3.0,-7.9,0x52a47d,'maria');
-  makeCitizen('Sr. Carlos',0.0,15.0,0xe1ad6d,'carlos');
-  makeCitizen('Ana',13.2,20.0,0x7b94cc,'ana');
+  // O modelo será carregado em buildScene. Ponto de início temporário.
+  mapLandmarks.length=0;
+  mapLandmarks.push({title:'Ponto provisório de inspeção (NÃO é A11)',x:playerPos.x,z:playerPos.z});
+  makeCitizen('Dona Maria',-3,-7.9,0x52a47d,'maria');
+  makeCitizen('Sr. Carlos',0,15,0xe1ad6d,'carlos');
+  makeCitizen('Ana',13.2,20,0x7b94cc,'ana');
+}
+function loadRealMap(){
+  const info=document.getElementById('mapa-real-status');
+  new GLTFLoader().load('./mapa-topoexport.glb?v=103',g=>{
+    // TopoExport: eixo Z é vertical. Three.js: eixo Y vertical.
+    const model=g.scene;
+    model.rotation.x=-Math.PI/2;
+    model.updateMatrixWorld(true);
+    const bounds=new THREE.Box3().setFromObject(model),center=bounds.getCenter(new THREE.Vector3());
+    model.position.x-=center.x;
+    model.position.z-=center.z;
+    // A cota local será acertada pelo terreno sob o ponto de teste.
+    model.position.y-=bounds.min.y;
+    model.updateMatrixWorld(true);
+    const ray=new THREE.Raycaster(new THREE.Vector3(0,150,0),new THREE.Vector3(0,-1,0),0,250);
+    let hits=ray.intersectObject(model,true).filter(h=>h.face&&h.face.normal).map(h=>h.point.y);
+    if(hits.length){model.position.y-=Math.min(...hits)-GROUND_Y;}
+    model.traverse(o=>{if(o.isMesh){o.receiveShadow=true;o.castShadow=false;o.frustumCulled=false;}});
+    scene.add(model);mapaTopoCarregado=true;
+    scene.fog=new THREE.Fog(0x91c8e1,130,280);
+    camera.far=1400;camera.updateProjectionMatrix();
+    if(info)info.textContent='Mapa TopoExport carregado • spawn provisório';
+  },undefined,err=>{console.error('Erro mapa real',err);if(info)info.textContent='ERRO: mapa GLB não carregou';});
 }
 
 // v1.0 - assets de terceiros, carregados sem bloquear o protagonista.
@@ -1747,7 +1692,7 @@ function populateCity(){
  const fbx=new FBXLoader();
  const loadCount=NPC_ASSETS.length;
  npcInfo('Carregando NPCs 0/'+loadCount);
- NPC_ASSETS.forEach((spec,i)=>fbx.load('./'+spec.file+'?v=101',model=>{
+ NPC_ASSETS.forEach((spec,i)=>fbx.load('./'+spec.file+'?v=103',model=>{
    const bounds=new THREE.Box3().setFromObject(model);
    const size=bounds.getSize(new THREE.Vector3());
    if(bounds.isEmpty()||!Number.isFinite(size.y)||size.y<.001){npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • erro de geometria');return;}
@@ -1780,12 +1725,17 @@ function populateCity(){
    npcLoadStatus.ok++;npcInfo('NPCs carregados: '+npcLoadStatus.ok+'/'+loadCount+(npcLoadStatus.failed?' • falhas: '+npcLoadStatus.failed:''));
  },undefined,error=>{npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • falhas: '+npcLoadStatus.failed);console.error('Falha FBX:',spec.file,error);}));
  VEHICLE_ASSETS.forEach(spec=>fbx.load('./'+spec.file+'?v=101',model=>prepareExternalModel(model,1.5,spec.x,spec.z,spec.rot),undefined,e=>console.warn('Carro indisponível:',spec.file,e)));
- // v1.0.2: Fastback não posicionada: não inserir dentro do prédio até calibrar área real.
- // O arquivo fastback-gm.glb permanece no repositório e será reutilizado.
+ // Fastback retorna em posição PROVISÓRIA de inspeção, fora de sua vaga definitiva.
+ new GLTFLoader().load('./fastback-gm.glb?v=103',g=>{
+   const car=g.scene;
+   if(prepareExternalModel(car,1.65,8,-8,Math.PI/2)){
+     npcInfo('Modelos 3D carregando • Fastback no ponto provisório');
+   }
+ },undefined,e=>console.warn('Fastback indisponível',e));
 }
 
 const ambientMixers=[];
-const SAVE_V100='tio-urso-patrulha-save-v100';
+const SAVE_V100='tio-urso-patrulha-save-v103-mapa-real';
 let selectedPlatform='auto';
 function readSession(){try{return JSON.parse(localStorage.getItem(SAVE_V100)||'null');}catch{return null;}}
 function saveSession(){
@@ -1840,6 +1790,7 @@ function buildScene(){
   sunLight.shadow.radius=2;
   scene.add(sunLight);scene.add(sunLight.target);
   buildDowntownMap();
+  loadRealMap();
   populateCity();
   player=new THREE.Group();player.position.copy(playerPos);player.position.y=GROUND_Y;scene.add(player);
   createGroundShadow();makeAttackEffect();makeTonfa();
@@ -2082,28 +2033,9 @@ function drawMap(){
   c.clearRect(0,0,w,h);c.fillStyle='#91a17f';c.fillRect(0,0,w,h);
   const scale=1.54, px=player.position.x, pz=player.position.z;
   const mx=x=>w/2+(x-px)*scale, my=z=>h/2+(z-pz)*scale;
-  // Orientação: Av. Arapongas à esquerda e Rua Falcão na parte superior.
-  for(const st of MAPA_RUAS){
-    c.fillStyle='#3e4d55';
-    if(st.eixo==='z')c.fillRect(mx(st.pos-st.largura/2),0,st.largura*scale,h);
-    else c.fillRect(0,my(st.pos-st.largura/2),w,st.largura*scale);
-    c.strokeStyle='#d7cca9';c.lineWidth=1;c.setLineDash([3,7]);c.beginPath();
-    if(st.eixo==='z'){c.moveTo(mx(st.pos),0);c.lineTo(mx(st.pos),h);}
-    else{c.moveTo(0,my(st.pos));c.lineTo(w,my(st.pos));}
-    c.stroke();c.setLineDash([]);
-  }
-  c.fillStyle='#d7c5a9';
-  c.fillRect(mx(-37.4),my(5.3),74.8*scale,31.5*scale);
-  c.fillStyle='#d0d2c6';
-  for(const b of [
-    [-12,-18,15,12],[-29,-24,14,12],[-14,-33,9.8,6.7],
-    [8,-29,14.5,11],[27,-28.5,15,12],[-25.5,20,13.2,15.5]
-  ])c.fillRect(mx(b[0]-b[2]/2),my(b[1]-b[3]/2),b[2]*scale,b[3]*scale);
-  for(const lm of mapLandmarks){
-    const x=mx(lm.x),y=my(lm.z);if(x<0||y<0||x>w||y>h)continue;
-    c.beginPath();c.arc(x,y,lm.title.includes('Spawn')?5:3,0,Math.PI*2);
-    c.fillStyle=lm.title.includes('Spawn')?'#4cffb9':'#ffde83';c.fill();
-  }
+  // O modelo importado ainda NÃO está georreferenciado com A11/P1–P5.
+  c.fillStyle='#dbe9e5';c.font='10px system-ui';c.fillText('TOPOEXPORT • VISÃO LOCAL',7,14);
+  c.strokeStyle='#6aa8a0';c.lineWidth=1;c.strokeRect(2,2,w-4,h-4);
   for(const n of citizenNodes){
     const x=mx(n.citizen.position.x),y=my(n.citizen.position.z);
     if(x<-5||x>w+5||y<-5||y>h+5)continue;
