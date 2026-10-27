@@ -1780,7 +1780,8 @@ function populateCity(){
    npcLoadStatus.ok++;npcInfo('NPCs carregados: '+npcLoadStatus.ok+'/'+loadCount+(npcLoadStatus.failed?' • falhas: '+npcLoadStatus.failed:''));
  },undefined,error=>{npcLoadStatus.failed++;npcInfo('NPCs '+npcLoadStatus.ok+'/'+loadCount+' • falhas: '+npcLoadStatus.failed);console.error('Falha FBX:',spec.file,error);}));
  VEHICLE_ASSETS.forEach(spec=>fbx.load('./'+spec.file+'?v=101',model=>prepareExternalModel(model,1.5,spec.x,spec.z,spec.rot),undefined,e=>console.warn('Carro indisponível:',spec.file,e)));
- new GLTFLoader().load('./fastback-gm.glb?v=101',gltf=>prepareExternalModel(gltf.scene,1.67,-14,-14,Math.PI/2),undefined,e=>console.warn('Fastback indisponível:',e));
+ // v1.0.2: Fastback não posicionada: não inserir dentro do prédio até calibrar área real.
+ // O arquivo fastback-gm.glb permanece no repositório e será reutilizado.
 }
 
 const ambientMixers=[];

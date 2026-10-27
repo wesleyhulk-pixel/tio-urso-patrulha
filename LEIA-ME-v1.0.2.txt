@@ -1,0 +1,1 @@
+v1.0.2 CORREÇÃO LIMITADA: mapa 3D de conferência com zoom por botões, toque e vista aérea; clique no minimapa para ampliar. Fastback temporariamente oculta até determinar local correto. A cena jogável AINDA É ESQUEMÁTICA. Não substitui os FBX, GLB e áudios publicados na v1.0.0.

@@ -99,6 +99,14 @@ body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
     <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
   </main>
   <script type="module" src="./app.js?v=100"></script>
-<a href="mapa-real.html" target="_blank" style="position:fixed;bottom:7px;left:50%;transform:translateX(-50%);z-index:20;background:#142e43e8;border:1px solid #78c1dd;border-radius:9px;color:#fff;font:bold 11px system-ui,sans-serif;text-decoration:none;padding:7px 10px;white-space:nowrap">🗺️ INSPECIONAR MAPA REAL (TOPOEXPORT)</a>
+<a href="mapa-real.html?v=102" target="_blank" style="position:fixed;bottom:7px;left:50%;transform:translateX(-50%);z-index:20;background:#142e43e8;border:1px solid #78c1dd;border-radius:9px;color:#fff;font:bold 11px system-ui,sans-serif;text-decoration:none;padding:7px 10px;white-space:nowrap">🗺️ INSPECIONAR MAPA REAL (TOPOEXPORT)</a>
+
+<style>
+#minimap{cursor:zoom-in;touch-action:manipulation}#bigmap-panel{position:fixed;inset:0;z-index:9998;background:#081725ed;display:none;align-items:center;justify-content:center;flex-direction:column;gap:9px;color:white;font:14px system-ui}#bigmap-panel.show{display:flex}#bigmap-panel canvas{width:min(85vw,76vh);height:min(85vw,76vh);max-width:660px;max-height:660px;border:2px solid #e2c06a;background:#0a1b27;image-rendering:auto}#bigmap-panel button{padding:12px 26px;border:1px solid #efc76e;border-radius:9px;background:#234257;color:#fff;font-weight:700}
+</style>
+<div id="bigmap-panel" role="dialog" aria-label="Minimapa ampliado"><strong>Mapa do Centro — ESQUEMÁTICO</strong><canvas id="bigmap-canvas" width="720" height="720"></canvas><button id="close-bigmap">Fechar mapa</button></div>
+<script>
+(function(){const small=document.getElementById('minimap'),panel=document.getElementById('bigmap-panel'),big=document.getElementById('bigmap-canvas');if(!small||!panel||!big)return;let updateId;function paint(){const ctx=big.getContext('2d');ctx.clearRect(0,0,big.width,big.height);ctx.imageSmoothingEnabled=true;ctx.drawImage(small,0,0,big.width,big.height);if(panel.classList.contains('show'))updateId=requestAnimationFrame(paint);}function close(){panel.classList.remove('show');cancelAnimationFrame(updateId);}small.title='Toque para ampliar o minimapa';small.addEventListener('click',()=>{panel.classList.add('show');paint();});document.getElementById('close-bigmap').onclick=close;panel.addEventListener('click',e=>{if(e.target===panel)close()});addEventListener('keydown',e=>{if(e.key==='Escape')close()});})();
+</script>
 </body>
 </html>
