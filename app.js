@@ -18,6 +18,7 @@
 // v0.8.5: sons urbanos e biblioteca de efeitos com prévia.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
 // v0.8.4: câmera sobre ombro com centro de mira livre das costas; pata menor
 // presa à superfície traseira do colete, sem tocar nos riggings aprovados.
@@ -1707,6 +1708,86 @@ function buildDowntownMap(){
   makeCitizen('Sr. Carlos',0.0,15.0,0xe1ad6d,'carlos');
   makeCitizen('Ana',13.2,20.0,0x7b94cc,'ana');
 }
+
+// v1.0 - assets de terceiros, carregados sem bloquear o protagonista.
+const NPC_ASSETS=[
+ {file:'Male_Casual.fbx',x:-3,z:-7.9},
+ {file:'Female_Casual.fbx',x:0,z:15},
+ {file:'Male_Suit.fbx',x:13.2,z:20},
+ {file:'Female_Dress.fbx',x:9,z:-16}
+];
+const VEHICLE_ASSETS=[
+ {file:'NormalCar1.fbx',x:-19,z:19,rot:1.57,color:0x8bbaac},
+ {file:'NormalCar2.fbx',x:-19,z:26,rot:1.57,color:0xd3c7ad},
+ {file:'SUV.fbx',x:20,z:4,rot:-1.57,color:0xa3b8c8},
+ {file:'Taxi.fbx',x:19,z:11,rot:-1.57,color:0xe0bf60}
+];
+function prepareExternalModel(model, height, x,z,rotation=0){
+ const bounds=new THREE.Box3().setFromObject(model);
+ if(bounds.isEmpty())return false;
+ const size=bounds.getSize(new THREE.Vector3());
+ const factor=height/Math.max(size.y,.01);
+ if(!Number.isFinite(factor)||factor>200||factor<.000001)return false;
+ model.scale.setScalar(factor);
+ model.position.set(x-(bounds.min.x+bounds.max.x)*factor/2,-bounds.min.y*factor,z-(bounds.min.z+bounds.max.z)*factor/2);
+ model.rotation.y=rotation;
+ model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.frustumCulled=false;}});
+ scene.add(model);return true;
+}
+function populateCity(){
+ const fbx=new FBXLoader();
+ NPC_ASSETS.forEach((spec,i)=>fbx.load('./'+spec.file+'?v=100',model=>{
+   // Coloca os humanos detalhados no mesmo lugar dos 3 NPCs da primeira missão,
+   // sem remover a interação já existente.
+   if(prepareExternalModel(model,1.72,spec.x,spec.z)){
+     if(i<3){const dummy=citizenNodes[i]?.citizen;if(dummy)dummy.visible=false;
+       // A placa de interação continua visível sobre o novo personagem.
+       const flag=citizenNodes[i]?.flag;
+       if(flag){flag.visible=true;flag.position.y=2.35;model.add(flag);citizenNodes[i].citizen=model;}
+     }
+     const animations=model.animations||[];
+     if(animations.length){const mixer=new THREE.AnimationMixer(model); const chosen=animations.find(a=>/idle|stand/i.test(a.name))||animations[0];mixer.clipAction(chosen).play();ambientMixers.push(mixer);}
+   }
+ },undefined,e=>console.warn('NPC indisponível:',spec.file,e)));
+ VEHICLE_ASSETS.forEach(spec=>fbx.load('./'+spec.file+'?v=100',model=>prepareExternalModel(model,1.5,spec.x,spec.z,spec.rot),undefined,e=>console.warn('Carro indisponível:',spec.file,e)));
+ new GLTFLoader().load('./fastback-gm.glb?v=100',gltf=>{
+   prepareExternalModel(gltf.scene,1.67,-14,-14,Math.PI/2);
+ },undefined,e=>console.warn('Fastback indisponível:',e));
+}
+const ambientMixers=[];
+const SAVE_V100='tio-urso-patrulha-save-v100';
+let selectedPlatform='auto';
+function readSession(){try{return JSON.parse(localStorage.getItem(SAVE_V100)||'null');}catch{return null;}}
+function saveSession(){
+ if(!player||!started)return;
+ const data={version:1,updated:Date.now(),x:player.position.x,z:player.position.z,rotation:player.rotation.y,xp,talked:[...talked],equipped,camYaw,camPitch};
+ try{localStorage.setItem(SAVE_V100,JSON.stringify(data));}catch(e){console.warn('Salvamento indisponível',e)}
+}
+function restoreSession(){
+ const s=readSession();if(!s)return false;
+ for(const k of ['x','z','rotation','xp'])if(!Number.isFinite(Number(s[k])))return false;
+ player.position.set(Number(s.x),GROUND_Y,Number(s.z));player.rotation.y=Number(s.rotation);
+ xp=Number(s.xp);talked=new Set((s.talked||[]).filter(v=>typeof v==='string'));
+ camYaw=Number.isFinite(s.camYaw)?s.camYaw:camYaw;
+ camPitch=Number.isFinite(s.camPitch)?s.camPitch:camPitch;
+ equipped=s.equipped==='tonfa'&&talked.size>=3?'tonfa':'punhos';
+ updateHud();return true;
+}
+function resetSession(){
+ xp=0;talked=new Set();equipped='punhos';
+ player.position.copy(playerPos);player.position.y=GROUND_Y;player.rotation.y=0;
+ camYaw=Math.PI;camPitch=.26;try{localStorage.removeItem('tio-urso-patrulha-demo-v01');}catch(e){}
+ updateHud();saveSession();
+}
+function configurePlatform(value){
+ selectedPlatform=value;
+ const touch = value==='celular'||(value==='auto'&& (navigator.maxTouchPoints>0||matchMedia('(pointer:coarse)').matches));
+ document.body.classList.toggle('desktop-control',!touch);
+ const status=document.getElementById('platform-state');
+ if(status)status.textContent=touch?'Toque e joystick virtual':'WASD, Shift, mouse, E (falar), Espaço (ação), Q (equipamentos), F (mirar)';
+ try{localStorage.setItem('tio-urso-platform-v100',value)}catch(e){}
+}
+
 function buildScene(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x91c8e1);scene.fog=new THREE.Fog(0x91c8e1,34,92);
   camera=new THREE.PerspectiveCamera(64,1,.1,180);
@@ -1729,6 +1810,7 @@ function buildScene(){
   sunLight.shadow.radius=2;
   scene.add(sunLight);scene.add(sunLight.target);
   buildDowntownMap();
+  populateCity();
   player=new THREE.Group();player.position.copy(playerPos);player.position.y=GROUND_Y;scene.add(player);
   createGroundShadow();makeAttackEffect();makeTonfa();
   clock=new THREE.Clock();
@@ -1820,6 +1902,7 @@ function applyStableFirearmAimPose(blend){
 }
 
 function update(dt){
+  for(const m of ambientMixers)m.update(dt);
   let vx=joyX,vy=joyY;
   if(pressedKeys.has('KeyA')||pressedKeys.has('ArrowLeft'))vx-=1;
   if(pressedKeys.has('KeyD')||pressedKeys.has('ArrowRight'))vx+=1;
@@ -2115,10 +2198,21 @@ try{
   enableReticleCalibration();
   applyReticleAdjustments();
   ready=true;introButton.disabled=false;
-  introButton.textContent='INICIAR PATRULHAMENTO';
+  introButton.textContent='NOVO JOGO';
+  const savedGame=readSession();
+  const continueButton=document.getElementById('continue-game');
+  continueButton.disabled=!savedGame;
+  continueButton.textContent=savedGame?'CONTINUAR PARTIDA':'CONTINUAR (sem partida salva)';
+  configurePlatform(localStorage.getItem('tio-urso-platform-v100')||'auto');
+  document.getElementById('platform-select').addEventListener('change',e=>configurePlatform(e.target.value));
+  document.getElementById('platform-select').value=selectedPlatform;
+  window.setInterval(saveSession,5000);
+  window.addEventListener('pagehide',saveSession);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveSession()});
   el('load-info').textContent=loaded?(comboAnim?'Tio Urso animado: caminhada, corrida e combo de golpes!':hasRiggedAnimations?'Caminhada e corrida prontas!':'Tio Urso 3D carregado!'):'Modelo não carregou; modo reserva disponível.';
   introButton.addEventListener('click',async()=>{
     if(!ready)return;
+    resetSession();
     started=true;el('intro').style.display='none';
     document.body.classList.add('patrulha-iniciada');
     // Audio e orientacao devem comecar pelo toque do usuario (permissao Android).
@@ -2130,6 +2224,13 @@ try{
       // Orientacao bloqueada pelo navegador/sistema: mostra instrucoes, sem travar o jogo.
       notify('Para paisagem, habilite Rotação automática no Android e gire o celular.',4500);
     }
+  });
+  continueButton.addEventListener('click',async()=>{
+    if(!ready||!restoreSession())return;
+    started=true;el('intro').style.display='none';
+    document.body.classList.add('patrulha-iniciada');
+    initializeAudio();await requestLandscapeForGame();
+    notify('Partida retomada no local salvo!',2500);
   });
   loop();
 } catch(error){
