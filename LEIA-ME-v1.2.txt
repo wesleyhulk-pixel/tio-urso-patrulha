@@ -1,0 +1,1 @@
+Substituir quadra-real.html no repositório. Preservar mapa-topoexport.glb. Vista aérea ortográfica fixa; perspectiva separada. Coordenadas A11/P1-P5/E5 mantidas.
