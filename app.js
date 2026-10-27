@@ -68,7 +68,9 @@ const PAW_ADJUST_MODE = new URLSearchParams(location.search).has('pata');
 const MODEL_FACE_OFFSET = 0; // 0 = personagem olha para +Z.
 const PLAYER_SPEED = 2.9;
 const RUN_SPEED = 5.4;
-const LIMIT = 125;
+// v1.0.5: limite ampliado para cobrir todo o GLB (~1 km), inclusive a recepção A11.
+// Antes o spawn (-178, -209) estava fora de LIMIT=125, travando WASD e joystick.
+const LIMIT = 650;
 // A configuração abaixo permite ajustar o mapa depois com a foto aérea.
 // As coordenadas são LOCAIS ao jogo, não latitudes/longitudes reais.
 const MAPA_VERSAO = "CENTRO · MATRIZ / CENTRAL — SATÉLITE v0.9.1";

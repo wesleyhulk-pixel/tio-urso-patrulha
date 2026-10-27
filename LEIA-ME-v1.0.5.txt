@@ -1,0 +1,4 @@
+Tio Urso: Patrulha v1.0.5 — correção de travamento da movimentação.
+Causa: limite de 125 unidades bloqueava a posição A11 fora da área.
+Instale index.html e app.js na raiz do GitHub. Não apague GLB, FBX, CSS ou sons.
+Teste WASD e joystick no ponto inicial.
