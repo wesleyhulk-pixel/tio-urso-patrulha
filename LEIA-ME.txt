@@ -1,1 +1,1 @@
-Tio Urso — Menu v1.0.14. Envie index.html, app.js, capa-arapongas-wide.webp. Esta versao nao corrige o mapa. Sem alteracao no 3D; debug oculto, menu fullscreen e areas de clique recalibradas.
+Tio Urso: menu v1.0.15. Substituir SOMENTE index.html. Abra ?ajustebotoes=1; arraste os retângulos e ajuste pelo quadradinho do canto. Salvar e testar. Copiar coordenadas para enviar no chat. Os ajustes persistem neste navegador. Não altera app.js nem a capa.
