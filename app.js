@@ -2349,3 +2349,64 @@ try{
  };
  el2('park-copy').onclick=()=>{const spot=readFastbackSpot()||FASTBACK_PREVIEW_SPOT;const exportSpot={source:'topoexport-71F678',fastback:{x:spot.x+GEO_CENTER.x,z:spot.z+GEO_CENTER.z,rotacaoGraus:+((spot.rot||0)*180/Math.PI).toFixed(2)}};navigator.clipboard?.writeText(JSON.stringify(exportSpot,null,2));alert('Coordenadas da vaga copiadas.');};
 })();
+
+// ===== TIO URSO: EDITOR DE CENÁRIO v1.0.19 (opcional, não altera menu) =====
+(function setupSceneEditor119(){
+ const SAVE='tio-urso-editor-v119';
+ let saved={};try{saved=JSON.parse(localStorage.getItem(SAVE)||'{}')||{}}catch{}
+ const refs=new Map();let selected='',step=.25,editing=false,outline=null;
+ const css=document.createElement('style');css.textContent=`
+ #edit119-open{position:fixed;bottom:12px;left:12px;z-index:890;background:#142d45;color:#fff;border:1px solid #d7ab50;border-radius:9px;padding:8px;font:600 12px system-ui;display:none}
+ #edit119{position:fixed;right:8px;top:6px;bottom:6px;max-width:min(350px,94vw);width:320px;overflow:auto;z-index:920;background:#091c30f5;color:#fff;border:1px solid #d7ab50;border-radius:12px;padding:12px;font:13px system-ui;box-shadow:0 10px 26px #0008;display:none}
+ #edit119 button,#edit119 select,#edit119 input{background:#203e5d;color:white;border:1px solid #6b849c;border-radius:6px;padding:8px;min-height:34px;font:12px system-ui}
+ #edit119 .edit-row{display:flex;gap:5px;margin:6px 0;align-items:center;flex-wrap:wrap}
+ #edit119 .edit-row button{flex:1}#edit119 select{width:100%}#edit119 input{width:70px}#edit119 label{min-width:60px}
+ #edit119 .editwarn{font-size:11px;color:#eccd86}
+ `;document.head.appendChild(css);
+ const open=document.createElement('button');open.id='edit119-open';open.textContent='🛠 Editor de cenário';document.body.appendChild(open);
+ const panel=document.createElement('section');panel.id='edit119';panel.innerHTML=`
+ <div class="edit-row"><strong style="flex:1;font-size:17px">🛠 Editor de cenário</strong><button id="ed119-close">Fechar</button></div>
+ <div class="editwarn">Modo experimental. Ajustes só neste dispositivo até exportar o JSON. O menu inicial não é alterado.</div>
+ <div class="edit-row"><button id="ed119-refresh">Atualizar lista</button><button id="ed119-pick">Selecionar tocando no 3D</button></div>
+ <select id="ed119-objects"></select><div id="ed119-status" class="editwarn">Carregue o jogo antes de editar.</div>
+ <div class="edit-row"><label>Passo</label><select id="ed119-step" style="width:92px"><option value="0.05">0,05 m</option><option value="0.25" selected>0,25 m</option><option value="1">1 m</option><option value="5">5 m</option></select></div>
+ <div class="edit-row"><label>Lateral X</label><button data-ed119="x:-1">−</button><button data-ed119="x:1">+</button></div>
+ <div class="edit-row"><label>Altura Y</label><button data-ed119="y:-1">−</button><button data-ed119="y:1">+</button><button id="ed119-ground">Encostar no chão</button></div>
+ <div class="edit-row"><label>Fundo Z</label><button data-ed119="z:-1">−</button><button data-ed119="z:1">+</button></div>
+ <div class="edit-row"><label>Giro</label><button data-ed119="rot:-1">− 5°</button><button data-ed119="rot:1">+ 5°</button></div>
+ <div class="edit-row"><label>Escala</label><button data-ed119="scale:-1">− 5%</button><button data-ed119="scale:1">+ 5%</button></div>
+ <div class="edit-row"><button id="ed119-undo">Desfazer último</button><button id="ed119-reset">Restaurar objeto</button></div>
+ <div class="edit-row"><button id="ed119-save">Salvar ajustes</button><button id="ed119-copy">Copiar JSON</button></div>
+ <pre id="ed119-values" style="white-space:pre-wrap;font-size:11px;background:#142d45;border-radius:8px;padding:8px"></pre>
+ <div class="editwarn">Prédios e árvores importados poderão ser selecionados tocando em sua geometria. Colisões e terreno não são reconstruídos por este editor.</div>
+ `;document.body.appendChild(panel);
+ const $=s=>panel.querySelector(s), list=$('#ed119-objects'),status=$('#ed119-status');
+ const states=[];
+ const serialize=o=>({x:o.position.x,y:o.position.y,z:o.position.z,ry:o.rotation.y,scale:o.scale.x});
+ const restore=(o,v)=>{if(!o||!v)return;o.position.set(v.x,v.y,v.z);o.rotation.y=v.ry;o.scale.setScalar(v.scale);o.updateMatrixWorld(true)};
+ function register(id,label,obj){if(!obj||!obj.isObject3D)return;const prev=refs.get(id);if(prev?.obj===obj)return;const original=serialize(obj);refs.set(id,{obj,label,original});if(saved[id])restore(obj,saved[id]);}
+ function refresh(){
+  if(typeof fastbackObj!=='undefined'&&fastbackObj)register('fastback','Fastback GM',fastbackObj);
+  if(typeof citizenNodes!=='undefined')citizenNodes.forEach((c,i)=>register('npc-'+i,'Cidadão '+(i+1),c.citizen));
+  if(typeof scene!=='undefined'&&scene){let count=0;scene.traverse(o=>{if(!o.isMesh||count>=70)return;const n=(o.name||'').toLowerCase();if(/tree|arbor|veget|building|edif|house|roof/i.test(n)){register('map-'+o.id,`${/tree|arbor|veget/i.test(n)?'Árvore':'Prédio'} · ${o.name||o.id}`,o);count++;}})}
+  const existing=list.value;list.replaceChildren();for(const [id,r] of refs){const op=document.createElement('option');op.value=id;op.textContent=r.label;list.appendChild(op)}
+  selected=refs.has(existing)?existing:(refs.has(selected)?selected:(refs.keys().next().value||''));list.value=selected;show();
+ }
+ function show(){const r=refs.get(selected);status.textContent=r?'Selecionado: '+r.label:'Nenhum objeto carregado ainda';$('#ed119-values').textContent=r?JSON.stringify(serialize(r.obj),null,2):'Aguarde o carregamento';}
+ function edit(k,d){const r=refs.get(selected);if(!r)return;states.push({id:selected,value:serialize(r.obj)});if(states.length>40)states.shift();const o=r.obj;switch(k){case'x':o.position.x+=d*step;break;case'y':o.position.y+=d*step;break;case'z':o.position.z+=d*step;break;case'rot':o.rotation.y+=d*Math.PI/36;break;case'scale':o.scale.multiplyScalar(d>0?1.05:1/1.05)}o.updateMatrixWorld(true);show()}
+ open.onclick=()=>{editing=true;panel.style.display='block';refresh();try{document.exitPointerLock?.()}catch{}};
+ $('#ed119-close').onclick=()=>{editing=false;panel.style.display='none'};
+ $('#ed119-refresh').onclick=refresh;
+ list.onchange=()=>{selected=list.value;show()};
+ $('#ed119-step').onchange=e=>step=Number(e.target.value)||.25;
+ panel.querySelectorAll('[data-ed119]').forEach(b=>b.onclick=()=>{const [k,v]=b.dataset.ed119.split(':');edit(k,Number(v))});
+ $('#ed119-ground').onclick=()=>{const r=refs.get(selected);if(!r||typeof surfaceHeight!=='function')return;states.push({id:selected,value:serialize(r.obj)});const bbox=new THREE.Box3().setFromObject(r.obj);r.obj.position.y+=surfaceHeight(r.obj.position.x,r.obj.position.z)-bbox.min.y;show()};
+ $('#ed119-undo').onclick=()=>{const s=states.pop();if(s&&refs.has(s.id)){selected=s.id;restore(refs.get(s.id).obj,s.value);list.value=s.id;show()}};
+ $('#ed119-reset').onclick=()=>{const r=refs.get(selected);if(r){states.push({id:selected,value:serialize(r.obj)});restore(r.obj,r.original);show()}};
+ function exportData(){const items={};for(const [id,r] of refs)items[id]={name:r.label,...serialize(r.obj)};return {source:'topoexport-71F678',editor:'v1.0.19',items}}
+ $('#ed119-save').onclick=()=>{saved={};for(const [id,r] of refs)saved[id]=serialize(r.obj);try{localStorage.setItem(SAVE,JSON.stringify(saved));status.textContent='Ajustes salvos neste navegador.'}catch{status.textContent='Falha no armazenamento local.'}};
+ $('#ed119-copy').onclick=async()=>{const t=JSON.stringify(exportData(),null,2);try{await navigator.clipboard.writeText(t);status.textContent='JSON copiado. Envie aqui no chat.'}catch{prompt('Copie o JSON:',t)}};
+ let picking=false;$('#ed119-pick').onclick=()=>{picking=true;panel.style.display='none';open.textContent='Toque no objeto para selecionar';};
+ document.addEventListener('pointerdown',e=>{if(!picking||!renderer||!camera||!scene||e.target!==renderer.domElement)return;const b=renderer.domElement.getBoundingClientRect();const pos=new THREE.Vector2(2*(e.clientX-b.left)/b.width-1,1-2*(e.clientY-b.top)/b.height);const ray=new THREE.Raycaster();ray.setFromCamera(pos,camera);const hits=ray.intersectObjects([...scene.children],true);for(const h of hits){let obj=h.object;while(obj&&!Array.from(refs.values()).some(r=>r.obj===obj))obj=obj.parent;if(obj){const match=[...refs].find(([,r])=>r.obj===obj);if(match){selected=match[0];break}}else if(h.object.isMesh){const id='custom-'+h.object.id;register(id,'Objeto 3D · '+(h.object.name||h.object.id),h.object);selected=id;break}}picking=false;open.textContent='🛠 Editor de cenário';panel.style.display='block';refresh();e.stopPropagation();e.preventDefault()},true);
+ const watcher=setInterval(()=>{if(typeof started!=='undefined'&&started){open.style.display='block';if(editing)refresh()}},1500);
+})();

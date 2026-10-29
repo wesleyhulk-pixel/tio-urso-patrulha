@@ -1,6 +1,5 @@
-Tio Urso: Patrulha — menu v1.0.18
-Substitua SOMENTE index.html na raiz do GitHub.
-Calibracoes recebidas: 29/10/2026; NOVO, CONTINUAR, PLATAFORMA, CONFIGURACOES.
-Nao altera app.js, arte, modelos ou mapa.
-
-Acesse ?ajustebotoes=1&v=118 para exibir as areas.
+Tio Urso: Patrulha - Editor de Cenário Experimental v1.0.19
+Envie somente app.js para a raiz do GitHub. NAO altere index.html do menu v1.0.18.
+Abra Novo Jogo e toque no botao Editor de cenário. Escolha objeto e ajuste. Use Salvar e Copiar JSON.
+Limites: terreno e colisões nao sao reconstruidos; malhas do TopoExport podem estar agrupadas; escala da Fastback pode ser recalculada se voce usar a calibracao antiga.
+Faça backup do app.js atual antes de substituir.
