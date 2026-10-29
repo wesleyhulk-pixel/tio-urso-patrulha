@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Protótipo 1.0.3 — base real</title>
+  <title>Tio Urso: Patrulha | Menu inicial — Tio Urso: Patrulha</title>
   <link rel="manifest" href="./manifest.webmanifest?v=100" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -25,6 +25,30 @@
    Após iniciar, o jogo tenta paisagem e mostra orientação manual se necessário. */
 body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
 #audio-previews button{background:#284765;color:#fff;border:1px solid #ffffff44;border-radius:7px;padding:7px 5px;font-size:11px;min-height:36px;touch-action:manipulation}#audio-button:active,#audio-previews button:active{filter:brightness(1.3)}#audio-panel[hidden]{display:none!important}body.desktop-control .touch-ui{display:none!important}
+</style>
+<style id="menu-arapongas-v109">
+#intro.overlay{position:fixed!important;inset:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(300px,38%);align-items:stretch!important;padding:0!important;margin:0!important;z-index:1000!important;overflow-y:auto!important;background:#061321!important;color:white!important}
+#intro .art-area{min-height:100%;background:url('./capa-arapongas.webp') center 50%/cover no-repeat;position:relative}
+#intro .art-area:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 62%,#061321 100%)}
+#intro .intro-card{box-sizing:border-box!important;position:relative!important;min-width:0!important;max-width:none!important;width:100%!important;margin:auto!important;border:0!important;border-radius:0!important;padding:clamp(18px,3vw,48px)!important;background:linear-gradient(135deg,#071b31 0%,#081829 85%)!important;box-shadow:none!important;color:white!important;text-align:center!important}
+#intro .intro-card h1{font:bold clamp(25px,3vw,45px)/1.04 system-ui,sans-serif!important;letter-spacing:.04em!important;margin:0 0 8px!important;color:#fff!important}
+#intro .intro-card h1 span{display:block!important;color:#f2c778!important;font-size:.8em!important;letter-spacing:.17em!important;margin-top:5px}
+#intro .intro-card .menu-subtitle{color:#dce4ef!important;font:600 clamp(10px,1.15vw,13px) system-ui!important;margin:8px 0 16px!important}
+#intro .intro-divider{height:1px;background:linear-gradient(90deg,transparent,#d9b768,transparent);margin:12px 0!important}
+#intro #load-info{display:block;color:#b9c9d6!important;font:11px system-ui;margin:8px 0}
+#intro .menu-actions{display:grid;gap:9px;margin-top:14px}
+#intro .menu-actions>button{width:100%;border:1px solid #9eb0bd;min-height:45px;border-radius:9px;font:800 clamp(12px,1.3vw,16px) system-ui;letter-spacing:.06em;color:#fff;background:linear-gradient(180deg,#28485f,#12283d);cursor:pointer}
+#intro .menu-actions>#start{background:linear-gradient(180deg,#efcf82,#be9344)!important;color:#182335!important;border:1px solid #f5d799!important}
+#intro .menu-actions>button:disabled{opacity:.52;cursor:not-allowed}
+#intro .menu-actions>button:focus-visible{outline:3px solid #f1ce7c}
+#intro .menu-extra{margin-top:10px;padding:12px;background:#102a40;border:1px solid #55718b;border-radius:11px;text-align:left;font:13px system-ui}
+#intro .menu-extra[hidden]{display:none!important}
+#intro .menu-extra select,#intro .menu-extra input{width:100%;min-height:36px;margin-top:6px}
+#intro .menu-extra select{background:#183751;color:#fff;border-radius:7px;border:1px solid #819baa;padding:7px}
+#intro .small-note{font:11px/1.4 system-ui;color:#aabecd;margin:15px auto 0}
+body:not(.patrulha-iniciada) #top-ui,body:not(.patrulha-iniciada) #mission,body:not(.patrulha-iniciada) .map-wrap{visibility:hidden}
+@media(max-width:740px) and (orientation:portrait){#intro.overlay{grid-template-columns:1fr!important;grid-template-rows:minmax(170px,35vh) auto!important}#intro .art-area{min-height:170px;background-position:center 43%}#intro .art-area:after{background:linear-gradient(0deg,#061321,transparent 65%)}#intro .intro-card{padding:12px 20px 25px!important}#intro .menu-actions{gap:6px}#intro .menu-actions>button{min-height:42px}}
+@media(orientation:landscape) and (max-height:520px){#intro .intro-card{padding:8px 20px!important}#intro .intro-card h1{font-size:23px!important}#intro .menu-subtitle{display:none}#intro .intro-divider{margin:5px 0!important}#intro .menu-actions{gap:4px;margin-top:5px}#intro .menu-actions>button{min-height:32px!important;font-size:12px}#intro #load-info{font-size:10px;margin:4px 0}#intro .small-note{display:none}}
 </style>
 </head>
 <body>
@@ -80,26 +104,30 @@ body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
       <p>Protótipo: as ações são demonstrações, sem dano aos cidadãos. Pistola: apenas teste no modo ajuste.</p>
     </div>
     <div id="intro" class="overlay">
+      <div class="art-area" role="img" aria-label="Tio Urso de óculos escuros ao lado da Fastback em Arapongas, com Igreja Matriz e praça ao pôr do sol"></div>
       <div class="intro-card">
-        <span class="intro-paw">🐾</span>
         <h1>TIO URSO<span>PATRULHA</span></h1>
-        <p>Inspeção do mapa TopoExport: ponto de teste provisório.</p>
+        <p class="menu-subtitle">AÇÃO, PATRULHAMENTO E PROTEÇÃO DE ARAPONGAS</p>
         <div class="intro-divider"></div>
-        <small id="load-info">Preparando a Região Central de Arapongas...</small>
-        <button id="start" type="button" disabled>CARREGANDO...</button>
-        <button id="continue-game" type="button" disabled style="margin-top:8px;background:#24455c">CONTINUAR</button>
-        <div style="margin:12px auto 7px;text-align:left;max-width:300px;font-size:13px;color:#e9eff8"><label for="platform-select">🎮 Plataforma</label>
-        <select id="platform-select" style="margin-top:4px;width:100%;padding:9px;background:#183751;color:#fff;border:1px solid #d1bd75;border-radius:7px"><option value="auto">Automático</option><option value="celular">Celular</option><option value="pc">PC / Teclado e mouse</option></select>
-        <small id="platform-state" style="display:block;margin-top:6px;color:#c8d5de"></small></div>
-        <p class="micro">Joystick: leve = andar, até o topo = correr • Arraste na rua para olhar em todas as direções<br/>Caminhada, corrida e equipamentos preservados • Primeira área de Arapongas<br/>Mapa TopoExport usado na partida. Início PROVISÓRIO: a recepção A11 ainda precisa de alinhamento.</p>
+        <small id="load-info">Preparando sua patrulha...</small>
+        <div class="menu-actions">
+          <button id="start" type="button" disabled>NOVO JOGO</button>
+          <button id="continue-game" type="button" disabled>CONTINUAR</button>
+          <button id="menu-platform-button" type="button" aria-expanded="false" aria-controls="menu-platform-panel">PLATAFORMA</button>
+          <button id="menu-settings-button" type="button" aria-expanded="false" aria-controls="menu-settings-panel">CONFIGURAÇÕES</button>
+        </div>
+        <div id="menu-platform-panel" class="menu-extra" hidden><label for="platform-select">Escolha o tipo de controle</label><select id="platform-select"><option value="auto">Automático (recomendado)</option><option value="celular">Celular — toque e joystick</option><option value="pc">PC — teclado e mouse</option></select><small id="platform-state" style="display:block;margin-top:5px;color:#cad9e2"></small></div>
+        <div id="menu-settings-panel" class="menu-extra" hidden><label for="menu-volume">🔊 Volume de efeitos</label><input id="menu-volume" type="range" min="0" max="100" value="70"/><small>O volume também pode ser alterado no painel de áudio durante o jogo.</small></div>
+        <p class="small-note">Salvamento no navegador deste dispositivo • Versão de menu 1.0.9</p>
       </div>
     </div>
+
 
     <div id="rotate-hint"><div><span>📱 ↻</span><b>Gire o celular para horizontal</b><p>Este jogo foi preparado para o modo paisagem.</p><button id="ignore-rotate">Continuar assim mesmo</button></div></div>
     <div id="fatal" hidden><h2>Não foi possível abrir o 3D</h2><p id="fatal-reason"></p><button onclick="location.reload()">TENTAR NOVAMENTE</button></div>
   </main>
   <script type="module" src="./app.js?v=1075"></script>
-<a href="mapa-real.html?v=102" target="_blank" style="position:fixed;bottom:7px;left:50%;transform:translateX(-50%);z-index:20;background:#142e43e8;border:1px solid #78c1dd;border-radius:9px;color:#fff;font:bold 11px system-ui,sans-serif;text-decoration:none;padding:7px 10px;white-space:nowrap">🗺️ INSPECIONAR MAPA REAL (TOPOEXPORT)</a>
+
 
 <style>
 #minimap{cursor:zoom-in;touch-action:manipulation}#bigmap-panel{position:fixed;inset:0;z-index:9998;background:#081725ed;display:none;align-items:center;justify-content:center;flex-direction:column;gap:9px;color:white;font:14px system-ui}#bigmap-panel.show{display:flex}#bigmap-panel canvas{width:min(85vw,76vh);height:min(85vw,76vh);max-width:660px;max-height:660px;border:2px solid #e2c06a;background:#0a1b27;image-rendering:auto}#bigmap-panel button{padding:12px 26px;border:1px solid #efc76e;border-radius:9px;background:#234257;color:#fff;font-weight:700}
@@ -107,6 +135,18 @@ body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
 <div id="bigmap-panel" role="dialog" aria-label="Minimapa ampliado"><strong>Mapa local de INSPEÇÃO — ainda não alinhado</strong><canvas id="bigmap-canvas" width="720" height="720"></canvas><button id="close-bigmap">Fechar mapa</button></div>
 <script>
 (function(){const small=document.getElementById('minimap'),panel=document.getElementById('bigmap-panel'),big=document.getElementById('bigmap-canvas');if(!small||!panel||!big)return;let updateId;function paint(){const ctx=big.getContext('2d');ctx.clearRect(0,0,big.width,big.height);ctx.imageSmoothingEnabled=true;ctx.drawImage(small,0,0,big.width,big.height);if(panel.classList.contains('show'))updateId=requestAnimationFrame(paint);}function close(){panel.classList.remove('show');cancelAnimationFrame(updateId);}small.title='Toque para ampliar o minimapa';small.addEventListener('click',()=>{panel.classList.add('show');paint();});document.getElementById('close-bigmap').onclick=close;panel.addEventListener('click',e=>{if(e.target===panel)close()});addEventListener('keydown',e=>{if(e.key==='Escape')close()});})();
+</script>
+<script id="menu-v109-actions">
+(()=>{
+const p=document.getElementById('menu-platform-panel'),s=document.getElementById('menu-settings-panel');
+for(const [id,panel,other] of [['menu-platform-button',p,s],['menu-settings-button',s,p]]){
+ const btn=document.getElementById(id);
+ btn.addEventListener('click',()=>{const show=panel.hidden;panel.hidden=!show;other.hidden=true;btn.setAttribute('aria-expanded',String(show));document.getElementById(id==='menu-platform-button'?'menu-settings-button':'menu-platform-button').setAttribute('aria-expanded','false');});
+}
+const slider=document.getElementById('menu-volume');
+const audioSlider=document.getElementById('audio-volume');
+if(audioSlider){slider.value=audioSlider.value;slider.addEventListener('input',()=>{audioSlider.value=slider.value;audioSlider.dispatchEvent(new Event('input',{bubbles:true}));audioSlider.dispatchEvent(new Event('change',{bubbles:true}));});}
+})();
 </script>
 </body>
 </html>

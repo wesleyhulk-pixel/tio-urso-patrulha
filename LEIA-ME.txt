@@ -1,1 +1,1 @@
-Tio Urso: Patrulha v1.0.7.5 — envie index.html e app.js juntos. Ajusta cache de JS, escala uniforme da Fastback e colisões na base geográfica. Necessário testar no PC/Android. Não exclua GLBs nem audios.
+Menu Arapongas v1.0.9 — envie index.html e capa-arapongas.webp para a raiz do repositorio. NÃO substitua app.js. Novo Jogo e Continuar preservam os handlers do jogo existente; Plataforma e Configuracoes abrem paineis funcionais. A capa é um recorte da arte aprovada, sem os botoes desenhados, para permitir controles reais.
