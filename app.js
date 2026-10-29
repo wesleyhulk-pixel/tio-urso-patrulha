@@ -2196,34 +2196,53 @@ function installControls(){
   let cameraPointer=null,lastX=0,lastY=0;
   // v1.0.7.2: camera por Pointer Lock no PC, sem segurar mouse.
   let pcPaused=false;
+  let sceneEditorActive=false;
+  document.addEventListener("urso-editor-mode",(e)=>{
+    sceneEditorActive=!!e.detail?.active;
+    if(sceneEditorActive){pcPaused=false;pauseShade.style.display="none";pressedKeys.clear();if(document.pointerLockElement===mount)document.exitPointerLock?.();}
+    else if(started&&isPC()){pcPaused=false;pauseShade.style.display="none";requestMouse();}
+  });
   const pauseShade=document.createElement('div');
   pauseShade.id='pc-pause-shade';
   pauseShade.style.cssText='display:none;position:fixed;inset:0;z-index:99998;background:rgba(4,14,25,.78);color:white;align-items:center;justify-content:center;flex-direction:column;gap:16px;font:bold 22px system-ui;text-align:center';
   pauseShade.innerHTML='<div>⏸ JOGO PAUSADO</div><button type="button" id="pc-resume" style="font-size:18px;padding:12px 32px;border-radius:10px;cursor:pointer">▶ CONTINUAR</button><small style="font:14px system-ui">ESC pausa e libera o cursor</small>';
   document.body.appendChild(pauseShade);
   const isPC=()=>document.body.classList.contains('desktop-control');
-  const requestMouse=()=>{if(isPC()&&started&&!pcPaused&&document.pointerLockElement!==mount){const p=mount.requestPointerLock?.();p?.catch?.(err=>console.warn('Mouse lock indisponível:',err));}};
+  let freeCursorByRightClick=false; // v1.0.21: cursor livre sem pausar jogo
+  const requestMouse=()=>{if(isPC()&&started&&!pcPaused&&!sceneEditorActive&&document.pointerLockElement!==mount){freeCursorByRightClick=false;const p=mount.requestPointerLock?.();p?.catch?.(err=>console.warn('Mouse lock indisponível:',err));}};
   const resumePC=()=>{pcPaused=false;pauseShade.style.display='none';pressedKeys.clear();requestMouse();};
   pauseShade.querySelector('#pc-resume').addEventListener('click',resumePC);
   document.addEventListener('pointerlockchange',()=>{
-    if(document.pointerLockElement!==mount && started && isPC() && !pcPaused){pcPaused=true;pauseShade.style.display='flex';pressedKeys.clear();}
+    if(document.pointerLockElement!==mount && started && isPC() && !pcPaused && !sceneEditorActive && !freeCursorByRightClick){pcPaused=true;pauseShade.style.display='flex';pressedKeys.clear();}
   });
   document.addEventListener('mousemove',e=>{
-    if(document.pointerLockElement!==mount||!started||pcPaused||!isPC())return;
+    if(document.pointerLockElement!==mount||!started||pcPaused||sceneEditorActive||!isPC())return;
     camYaw-=e.movementX*.006;
     camPitch=THREE.MathUtils.clamp(camPitch+e.movementY*.0045,CAM_PITCH_MIN,CAM_PITCH_MAX);
   });
   document.addEventListener('keydown',e=>{
-    if(e.code==='Escape'&&started&&isPC()){
+    if(e.code==='Escape'&&started&&isPC()&&!sceneEditorActive){
       pcPaused=true;pauseShade.style.display='flex';pressedKeys.clear();
       if(document.pointerLockElement===mount)document.exitPointerLock?.();
       e.preventDefault();
     }
   });
+  // PC: botão direito libera cursor sem pausar; botão esquerdo é Ação quando a câmera está capturada.
+  mount.addEventListener('contextmenu', e=>{if(started && isPC()){e.preventDefault();}}, true);
+  mount.addEventListener('mousedown', e=>{
+    if(!started || !isPC() || pcPaused || sceneEditorActive)return;
+    if(e.button===2){
+      e.preventDefault();
+      freeCursorByRightClick=true;
+      if(document.pointerLockElement===mount)document.exitPointerLock?.();
+      return;
+    }
+    if(e.button===0 && document.pointerLockElement===mount){e.preventDefault();doAction();}
+  }, true);
   // Expor funções apenas aos botões Novo/Continuar e ao laço principal.
   window.__ursoMouseControl={requestMouse,isPaused:()=>pcPaused,isPC};
   mount.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='mouse'&&isPC()){requestMouse();return;}
+    if(e.pointerType==='mouse'&&isPC()){if(e.button===2)return;if(!sceneEditorActive&&!pcPaused&&e.button===0&&document.pointerLockElement!==mount)requestMouse();return;}
     if(e.pointerType==='mouse'&&e.button!==0)return;
     if(cameraPointer!==null)return; // O segundo dedo continua independente no joystick.
     cameraPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;
@@ -2394,8 +2413,10 @@ try{
  }
  function show(){const r=refs.get(selected);status.textContent=r?'Selecionado: '+r.label:'Nenhum objeto carregado ainda';$('#ed119-values').textContent=r?JSON.stringify(serialize(r.obj),null,2):'Aguarde o carregamento';}
  function edit(k,d){const r=refs.get(selected);if(!r)return;states.push({id:selected,value:serialize(r.obj)});if(states.length>40)states.shift();const o=r.obj;switch(k){case'x':o.position.x+=d*step;break;case'y':o.position.y+=d*step;break;case'z':o.position.z+=d*step;break;case'rot':o.rotation.y+=d*Math.PI/36;break;case'scale':o.scale.multiplyScalar(d>0?1.05:1/1.05)}o.updateMatrixWorld(true);show()}
- open.onclick=()=>{editing=true;panel.style.display='block';refresh();try{document.exitPointerLock?.()}catch{}};
- $('#ed119-close').onclick=()=>{editing=false;panel.style.display='none'};
+ const setEditorActive=active=>document.dispatchEvent(new CustomEvent('urso-editor-mode',{detail:{active}}));
+ open.onclick=()=>{editing=true;setEditorActive(true);panel.style.display='block';refresh();};
+ document.addEventListener('keydown',e=>{if(e.code==='F8' && typeof started!=='undefined'&&started){e.preventDefault();if(editing){editing=false;panel.style.display='none';picking=false;setEditorActive(false)}else open.click();}},true);
+ $('#ed119-close').onclick=()=>{editing=false;panel.style.display='none';picking=false;setEditorActive(false)};
  $('#ed119-refresh').onclick=refresh;
  list.onchange=()=>{selected=list.value;show()};
  $('#ed119-step').onchange=e=>step=Number(e.target.value)||.25;
@@ -2407,6 +2428,6 @@ try{
  $('#ed119-save').onclick=()=>{saved={};for(const [id,r] of refs)saved[id]=serialize(r.obj);try{localStorage.setItem(SAVE,JSON.stringify(saved));status.textContent='Ajustes salvos neste navegador.'}catch{status.textContent='Falha no armazenamento local.'}};
  $('#ed119-copy').onclick=async()=>{const t=JSON.stringify(exportData(),null,2);try{await navigator.clipboard.writeText(t);status.textContent='JSON copiado. Envie aqui no chat.'}catch{prompt('Copie o JSON:',t)}};
  let picking=false;$('#ed119-pick').onclick=()=>{picking=true;panel.style.display='none';open.textContent='Toque no objeto para selecionar';};
- document.addEventListener('pointerdown',e=>{if(!picking||!renderer||!camera||!scene||e.target!==renderer.domElement)return;const b=renderer.domElement.getBoundingClientRect();const pos=new THREE.Vector2(2*(e.clientX-b.left)/b.width-1,1-2*(e.clientY-b.top)/b.height);const ray=new THREE.Raycaster();ray.setFromCamera(pos,camera);const hits=ray.intersectObjects([...scene.children],true);for(const h of hits){let obj=h.object;while(obj&&!Array.from(refs.values()).some(r=>r.obj===obj))obj=obj.parent;if(obj){const match=[...refs].find(([,r])=>r.obj===obj);if(match){selected=match[0];break}}else if(h.object.isMesh){const id='custom-'+h.object.id;register(id,'Objeto 3D · '+(h.object.name||h.object.id),h.object);selected=id;break}}picking=false;open.textContent='🛠 Editor de cenário';panel.style.display='block';refresh();e.stopPropagation();e.preventDefault()},true);
+ document.addEventListener('pointerdown',e=>{if(!picking||!renderer||!camera||!scene||e.target!==renderer.domElement)return;const b=renderer.domElement.getBoundingClientRect();const pos=new THREE.Vector2(2*(e.clientX-b.left)/b.width-1,1-2*(e.clientY-b.top)/b.height);const ray=new THREE.Raycaster();ray.setFromCamera(pos,camera);const hits=ray.intersectObjects([...scene.children],true);for(const h of hits){let obj=h.object;while(obj&&!Array.from(refs.values()).some(r=>r.obj===obj))obj=obj.parent;if(obj){const match=[...refs].find(([,r])=>r.obj===obj);if(match){selected=match[0];break}}else if(h.object.isMesh){const id='custom-'+h.object.id;register(id,'Objeto 3D · '+(h.object.name||h.object.id),h.object);selected=id;break}}picking=false;open.textContent='🛠 Editor de cenário';panel.style.display='block';setEditorActive(true);refresh();e.stopPropagation();e.preventDefault()},true);
  const watcher=setInterval(()=>{if(typeof started!=='undefined'&&started){open.style.display='block';if(editing)refresh()}},1500);
 })();

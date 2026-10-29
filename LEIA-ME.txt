@@ -1,5 +1,1 @@
-Tio Urso: Patrulha - Editor de Cenário Experimental v1.0.19
-Envie somente app.js para a raiz do GitHub. NAO altere index.html do menu v1.0.18.
-Abra Novo Jogo e toque no botao Editor de cenário. Escolha objeto e ajuste. Use Salvar e Copiar JSON.
-Limites: terreno e colisões nao sao reconstruidos; malhas do TopoExport podem estar agrupadas; escala da Fastback pode ser recalculada se voce usar a calibracao antiga.
-Faça backup do app.js atual antes de substituir.
+Tio Urso: Patrulha v1.0.21 — PC: clique esquerdo aciona soco/tonfa/tiro conforme equipamento e regras existentes; clique direito libera cursor, clique esquerdo no cenario volta a prender; ESC continua pausando. F8 abre editor. Atualize somente app.js, preservando index.html do menu v1.0.18.
