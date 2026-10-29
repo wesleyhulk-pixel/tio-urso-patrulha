@@ -1,5 +1,4 @@
-MENU v1.0.10 — ARTE INTEIRA SEM CORTES
-
-Enviar index.html e capa-arapongas.webp para a raiz do GitHub, substituindo os existentes. Não alterar app.js, modelos nem demais arquivos.
-A arte é exibida inteiramente e os botões transparentes estão sobre os botões ilustrados.
-Painéis Plataforma e Configurações abrem sobre a imagem.
+Tio Urso: Patrulha — Menu v1.0.11
+Corrige a arte: imagem original horizontal 1672x941, não a capa quase quadrada da versão anterior.
+Enviar index.html e capa-arapongas-wide.webp à raiz do GitHub. Não alterar app.js.
+A imagem preserva seus quatro botões desenhados; áreas invisíveis clicáveis foram alinhadas.
