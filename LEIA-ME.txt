@@ -1,9 +1,1 @@
-TIO URSO — RECUPERACAO 1.0.13
-
-Envie index.html, app.js e capa-arapongas-wide.webp para a raiz do GitHub.
-Nao exclua GLBs, FBXs, MP3, CSS ou outros arquivos.
-
-Este pacote RESTAURA o app.js da versao 1.0.7.3 (que havia exibido a Fastback), retirando as colisoes experimentais da v1.0.7.5.
-Nao corrige a fidelidade geografica nem assegura os NPCs. Confirme se o modelo e o mapa voltam a aparecer.
-
-Menu: arte aprovada sem segunda coluna; areas de clique realinhadas.
+Tio Urso — Menu v1.0.14. Envie index.html, app.js, capa-arapongas-wide.webp. Esta versao nao corrige o mapa. Sem alteracao no 3D; debug oculto, menu fullscreen e areas de clique recalibradas.
