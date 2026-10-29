@@ -2221,7 +2221,19 @@ function installControls(){
     el('equip-firearm').disabled=false;
     el('equip-firearm').querySelector('small').textContent='🧪 TESTE VISUAL • sem disparos';
   }
-  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space'&&!e.repeat)ursoJump();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;if(e.code==='KeyF')setAiming(!aiming);});
+  // v1.0.24: Espaço é EXCLUSIVO do pulo, nunca dispara botões com foco.
+  window.addEventListener('keydown',e=>{
+    if(e.code!=='Space' || !started)return;
+    if(e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+    e.preventDefault();e.stopImmediatePropagation();
+    if(!e.repeat)ursoJump();
+  },true);
+  window.addEventListener('keyup',e=>{
+    if(e.code!=='Space'||!started)return;
+    if(e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+    e.preventDefault();e.stopImmediatePropagation();
+  },true);
+  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;if(e.code==='KeyF')setAiming(!aiming);});
   window.addEventListener('keyup',e=>pressedKeys.delete(e.code));
   window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;clearStick();});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.
@@ -2457,7 +2469,23 @@ try{
  list.onchange=()=>{selected=list.value;show()};
  $('#ed119-step').onchange=e=>step=Number(e.target.value)||.25;
  panel.querySelectorAll('[data-ed119]').forEach(b=>b.onclick=()=>{const [k,v]=b.dataset.ed119.split(':');edit(k,Number(v))});
- $('#ed119-ground').onclick=()=>{const r=refs.get(selected);if(!r||typeof surfaceHeight!=='function')return;states.push({id:selected,value:serialize(r.obj)});const bbox=new THREE.Box3().setFromObject(r.obj);r.obj.position.y+=surfaceHeight(r.obj.position.x,r.obj.position.z)-bbox.min.y;show()};
+ $('#ed119-ground').onclick=()=>{
+  const r=refs.get(selected);if(!r||typeof surfaceHeight!=='function')return;
+  states.push({id:selected,value:serialize(r.obj)});
+  // Altura do chao no eixo mundo; Box3 usa coordenadas de mundo.
+  r.obj.updateMatrixWorld(true);
+  const bbox=new THREE.Box3().setFromObject(r.obj);
+  if(!bbox.isEmpty()){
+    const worldPos=new THREE.Vector3();r.obj.getWorldPosition(worldPos);
+    const ground=surfaceHeight(worldPos.x,worldPos.z);
+    if(Number.isFinite(ground))r.obj.position.y+=ground-bbox.min.y;
+  }
+  r.obj.updateMatrixWorld(true);
+  // Salvar IMEDIATAMENTE depois de encostar no chao, sem depender de outro clique.
+  saved[selected]=serialize(r.obj);
+  try{localStorage.setItem(SAVE,JSON.stringify(saved));status.textContent='Altura salva automaticamente.'}catch(e){console.warn('Nao foi possivel salvar altura',e)}
+  show();
+ };
  $('#ed119-undo').onclick=()=>{const s=states.pop();if(s&&refs.has(s.id)){selected=s.id;restore(refs.get(s.id).obj,s.value);list.value=s.id;show()}};
  $('#ed119-reset').onclick=()=>{const r=refs.get(selected);if(r){states.push({id:selected,value:serialize(r.obj)});restore(r.obj,r.original);show()}};
  function exportData(){const items={};for(const [id,r] of refs)items[id]={name:r.label,...serialize(r.obj)};return {source:'topoexport-71F678',editor:'v1.0.19',items}}

@@ -1,11 +1,3 @@
-TIO URSO: PATRULHA v1.0.23 — PULO
-
-Atualize APENAS app.js na raiz do GitHub. Nao altere index.html nem a capa aprovada.
-
-PC: Espaco = pular; clique esquerdo = acao (soco/tonfa/arma).
-Celular: botao PULAR (lado direito).
-
-Salto simples por fisica, sem clip de animacao; o modelo permanece em pose de movimento no ar.
-Gravidade e deteccao do terreno incluidas. Teste experimental: validar saltos sobre ruas irregulares no dispositivo.
-
-Observacao: a configuracao do menu inicial nao foi alterada.
+Tio Urso v1.0.24 — Espaço exclusivo para pular e Encostar no chão com salvamento imediato.
+Substitua SOMENTE app.js. Não altere index.html/menu v1.0.18.
+Após atualizar, abra o editor e aplique Encostar no chão novamente aos três NPCs UMA VEZ para gravar suas alturas. Se os NPCs ainda afundarem, o mecanismo de altura do terreno precisará de inspeção adicional.
