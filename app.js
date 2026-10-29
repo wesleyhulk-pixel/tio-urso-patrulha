@@ -414,28 +414,6 @@ const toGame=(pos)=>({x:pos.x-GEO_CENTER.x,z:pos.z-GEO_CENTER.z});
 const a11=toGame(ANCHORS.A11);
 const playerPos = new THREE.Vector3(a11.x,0,a11.z);
 let realMapSurface=null, fastbackObj=null, fastbackBase=null;
-// Colisores simples em planta (construções e viatura); terreno/ruas são livres.
-let buildingColliders=[];
-const PLAYER_RADIUS=0.38;
-function collidesWithBuilding(x,z){
-  for(const b of buildingColliders){
-    const cx=Math.max(b.min.x,Math.min(x,b.max.x));
-    const cz=Math.max(b.min.z,Math.min(z,b.max.z));
-    if((x-cx)**2+(z-cz)**2 < PLAYER_RADIUS**2)return true;
-  }
-  return false;
-}
-function collidesWithFastback(x,z){
-  if(!fastbackObj || !fastbackObj.visible) return false;
-  fastbackObj.updateMatrixWorld(true);
-  const b=new THREE.Box3().setFromObject(fastbackObj);
-  if(b.isEmpty())return false;
-  const px=Math.max(b.min.x,Math.min(x,b.max.x));
-  const pz=Math.max(b.min.z,Math.min(z,b.max.z));
-  return ((x-px)**2+(z-pz)**2 < (PLAYER_RADIUS+.12)**2);
-}
-function blockedForPlayer(x,z){return collidesWithBuilding(x,z)||collidesWithFastback(x,z);}
-
 function surfaceHeight(x,z){
  if(!realMapSurface)return GROUND_Y;
  const ray=new THREE.Raycaster(new THREE.Vector3(x,300,z),new THREE.Vector3(0,-1,0),0,450);
@@ -1687,17 +1665,8 @@ function loadRealMap(){
     // Nunca mover o modelo pelo raycast: deslocaria as ancoras em relacao ao mapa.
     realMapSurface=[];
     model.traverse(o=>{if(o.isMesh && /Ground|Road|GreenArea/i.test(o.name))realMapSurface.push(o)});
-    // Boxes geradas somente dos prédios do TopoExport, nunca do solo, árvores ou ruas.
-    buildingColliders=[];
-    model.traverse(o=>{
-      if(!o.isMesh || !/buildings?/i.test(o.name))return;
-      const b=new THREE.Box3().setFromObject(o);
-      if(!b.isEmpty() && Number.isFinite(b.min.x) && b.max.y-b.min.y>1.0 && b.max.x-b.min.x<150 && b.max.z-b.min.z<150)buildingColliders.push(b);
-    });
-    console.info('Colisores construções',buildingColliders.length);
-
     model.traverse(o=>{if(o.isMesh){o.receiveShadow=true;o.castShadow=false;o.frustumCulled=false;}});
-    mapaTopoCarregado=true;
+    scene.add(model);mapaTopoCarregado=true;
     scene.fog=new THREE.Fog(0x91c8e1,130,280);
     camera.far=1400;camera.updateProjectionMatrix();
     if(info)info.textContent='Mapa TopoExport carregado • A11 calibrada';
@@ -1760,7 +1729,7 @@ function prepareFastbackModel(car){
  if(bb.isEmpty())throw new Error('Fastback GLB sem geometria');
  const dims=bb.getSize(new THREE.Vector3());
  const longest=Math.max(dims.x,dims.z);
- const scale=5.65/Math.max(longest,0.001);
+ const scale=4.40/Math.max(longest,0.001);
  if(!Number.isFinite(scale)||scale<=0||scale>1000)throw new Error('Escala inválida da Fastback');
  const wrapper=new THREE.Group();
  // Keep all axes scaled equally: never stretch height separately.
@@ -2011,11 +1980,10 @@ function update(dt){
   if(velocitySmooth.lengthSq()<.004)velocitySmooth.set(0,0,0);
   const x=player.position.x+velocitySmooth.x*dt;
   const z=player.position.z+velocitySmooth.z*dt;
-  // Colisão por eixo permite deslizar ao longo de paredes sem atravessar prédios.
-  // Se o personagem nascer sobre uma geometria imprecisa, permite escapar dela.
-  const px=player.position.x,pz=player.position.z;
-  if(Number.isFinite(x) && (!blockedForPlayer(x,pz) || blockedForPlayer(px,pz)))player.position.x=x;
-  if(Number.isFinite(z) && (!blockedForPlayer(player.position.x,z) || blockedForPlayer(px,pz)))player.position.z=z;
+  // TEMPORÁRIO: deslocamento direto para identificar se as colisões antigas travam o personagem.
+  // Não é a implementação final de colisão com os prédios reais.
+  if(Number.isFinite(x))player.position.x=x;
+  if(Number.isFinite(z))player.position.z=z;
   const speed=velocitySmooth.length();
   walking=speed>.12;
   if(walking || aiming){
@@ -2158,7 +2126,7 @@ function movementDebug(){
     document.body.appendChild(node);
   }
   const keys=[...pressedKeys].filter(k=>/^(Key[WASD]|Arrow|Shift)/.test(k)).join(',')||'-';
-  node.textContent=`DIAGNÓSTICO v1.0.7 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Colisores prédios: '+buildingColliders.length+' | Fastback: '+(fastbackObj?.visible?'sim':'não')}`;
+  node.textContent=`DIAGNÓSTICO v1.0.7 | ${started?'EM JOGO':'MENU'}\nTeclas: ${keys} | Joy: ${joyX.toFixed(1)},${joyY.toFixed(1)}\nX ${player?.position.x.toFixed(2)??'-'} Z ${player?.position.z.toFixed(2)??'-'}\n${movementLastError?'ERRO: '+movementLastError:'Movimento sem colisões (teste)'}`;
 }
 function loop(){
   requestAnimationFrame(loop);

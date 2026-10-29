@@ -1,15 +1,9 @@
-TIO URSO: PATRULHA — Correção do MENU v1.0.12
+TIO URSO — RECUPERACAO 1.0.13
 
-1. Extraia este ZIP.
-2. No GitHub, substitua index.html e capa-arapongas-wide.webp.
-3. NÃO altere o app.js nem exclua os outros arquivos.
-4. Abra ?v=menu112 após o GitHub Pages publicar.
+Envie index.html, app.js e capa-arapongas-wide.webp para a raiz do GitHub.
+Nao exclua GLBs, FBXs, MP3, CSS ou outros arquivos.
 
-Correções:
-- Novo Jogo e Continuar agora podem ocultar o menu: CSS display:none supera o display:flex !important antigo.
-- A arte APROVADA é a mesma, sem nenhuma imagem nova.
-- Áreas de clique ajustadas aos quatro botões ilustrados.
-- Painel de coordenadas e texto de carregamento ocultados na capa.
-- Fundo ambientado preenche as laterais sem faixas pretas, enquanto a arte principal é preservada integralmente.
+Este pacote RESTAURA o app.js da versao 1.0.7.3 (que havia exibido a Fastback), retirando as colisoes experimentais da v1.0.7.5.
+Nao corrige a fidelidade geografica nem assegura os NPCs. Confirme se o modelo e o mapa voltam a aparecer.
 
-Nota: em telas com proporção diferente da imagem 16:9, pode aparecer fundo desfocado nas margens, não barras pretas. O menu precisa ser testado em seu dispositivo.
+Menu: arte aprovada sem segunda coluna; areas de clique realinhadas.
