@@ -26,29 +26,27 @@
 body:not(.patrulha-iniciada) #rotate-hint{display:none!important}
 #audio-previews button{background:#284765;color:#fff;border:1px solid #ffffff44;border-radius:7px;padding:7px 5px;font-size:11px;min-height:36px;touch-action:manipulation}#audio-button:active,#audio-previews button:active{filter:brightness(1.3)}#audio-panel[hidden]{display:none!important}body.desktop-control .touch-ui{display:none!important}
 </style>
-<style id="menu-arapongas-v109">
-#intro.overlay{position:fixed!important;inset:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(300px,38%);align-items:stretch!important;padding:0!important;margin:0!important;z-index:1000!important;overflow-y:auto!important;background:#061321!important;color:white!important}
-#intro .art-area{min-height:100%;background:url('./capa-arapongas.webp') center 50%/cover no-repeat;position:relative}
-#intro .art-area:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 62%,#061321 100%)}
-#intro .intro-card{box-sizing:border-box!important;position:relative!important;min-width:0!important;max-width:none!important;width:100%!important;margin:auto!important;border:0!important;border-radius:0!important;padding:clamp(18px,3vw,48px)!important;background:linear-gradient(135deg,#071b31 0%,#081829 85%)!important;box-shadow:none!important;color:white!important;text-align:center!important}
-#intro .intro-card h1{font:bold clamp(25px,3vw,45px)/1.04 system-ui,sans-serif!important;letter-spacing:.04em!important;margin:0 0 8px!important;color:#fff!important}
-#intro .intro-card h1 span{display:block!important;color:#f2c778!important;font-size:.8em!important;letter-spacing:.17em!important;margin-top:5px}
-#intro .intro-card .menu-subtitle{color:#dce4ef!important;font:600 clamp(10px,1.15vw,13px) system-ui!important;margin:8px 0 16px!important}
-#intro .intro-divider{height:1px;background:linear-gradient(90deg,transparent,#d9b768,transparent);margin:12px 0!important}
-#intro #load-info{display:block;color:#b9c9d6!important;font:11px system-ui;margin:8px 0}
-#intro .menu-actions{display:grid;gap:9px;margin-top:14px}
-#intro .menu-actions>button{width:100%;border:1px solid #9eb0bd;min-height:45px;border-radius:9px;font:800 clamp(12px,1.3vw,16px) system-ui;letter-spacing:.06em;color:#fff;background:linear-gradient(180deg,#28485f,#12283d);cursor:pointer}
-#intro .menu-actions>#start{background:linear-gradient(180deg,#efcf82,#be9344)!important;color:#182335!important;border:1px solid #f5d799!important}
-#intro .menu-actions>button:disabled{opacity:.52;cursor:not-allowed}
-#intro .menu-actions>button:focus-visible{outline:3px solid #f1ce7c}
-#intro .menu-extra{margin-top:10px;padding:12px;background:#102a40;border:1px solid #55718b;border-radius:11px;text-align:left;font:13px system-ui}
+<style id="menu-arapongas-v110">
+/* A arte inteira sempre visível: sem cover, sem cortes e sem uma segunda coluna. */
+#intro.overlay{position:fixed!important;inset:0!important;z-index:1000!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;padding:0!important;margin:0!important;background:#061321!important;color:#fff!important}
+#intro .art-area{position:relative!important;flex:0 0 auto!important;width:min(100vw,calc(100dvh * 1045 / 941))!important;height:min(100dvh,calc(100vw * 941 / 1045))!important;min-height:0!important;background:url('./capa-arapongas.webp') center center / 100% 100% no-repeat!important;overflow:visible!important}
+#intro .art-area:after{display:none!important}
+#intro .intro-card{position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;height:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-shadow:none!important;border:0!important;background:none!important;pointer-events:none!important;transform:none!important}
+#intro .intro-card h1,#intro .intro-card .menu-subtitle,#intro .intro-divider,#intro .small-note{display:none!important}
+#intro #load-info{position:absolute!important;left:3%!important;bottom:1.5%!important;font:11px system-ui!important;color:#fff!important;background:#071b31ca!important;border-radius:6px!important;padding:3px 7px!important;max-width:44%!important;pointer-events:none!important}
+#intro .menu-actions{position:absolute!important;left:60.8%!important;top:50.7%!important;width:36.0%!important;height:35%!important;display:block!important;margin:0!important;padding:0!important;pointer-events:none!important}
+#intro .menu-actions>button{position:absolute!important;left:0!important;width:100%!important;height:18.4%!important;min-height:0!important;margin:0!important;padding:0!important;border:2px solid transparent!important;border-radius:10px!important;background:transparent!important;box-shadow:none!important;color:transparent!important;font-size:0!important;line-height:0!important;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
+#intro .menu-actions>#start{background:transparent!important;color:transparent!important;border:2px solid transparent!important}
+#intro .menu-actions>button:nth-child(1){top:0!important}
+#intro .menu-actions>button:nth-child(2){top:25.0%!important}
+#intro .menu-actions>button:nth-child(3){top:50.1%!important}
+#intro .menu-actions>button:nth-child(4){top:75.2%!important}
+#intro .menu-actions>button:hover,#intro .menu-actions>button:focus-visible{outline:2px solid #ffe5a0!important;outline-offset:0!important;background:#ffe4a318!important}
+#intro .menu-actions>button:disabled{opacity:1!important;cursor:not-allowed!important}
+#intro .menu-extra{position:absolute!important;left:59%!important;top:13%!important;width:38%!important;max-height:60%!important;overflow:auto!important;padding:12px!important;background:#061b31f4!important;border:1px solid #efca7c!important;border-radius:12px!important;box-shadow:0 8px 28px #000a!important;color:#fff!important;pointer-events:auto!important;font:clamp(10px,1.25vw,14px) system-ui!important;z-index:10!important}
 #intro .menu-extra[hidden]{display:none!important}
-#intro .menu-extra select,#intro .menu-extra input{width:100%;min-height:36px;margin-top:6px}
-#intro .menu-extra select{background:#183751;color:#fff;border-radius:7px;border:1px solid #819baa;padding:7px}
-#intro .small-note{font:11px/1.4 system-ui;color:#aabecd;margin:15px auto 0}
-body:not(.patrulha-iniciada) #top-ui,body:not(.patrulha-iniciada) #mission,body:not(.patrulha-iniciada) .map-wrap{visibility:hidden}
-@media(max-width:740px) and (orientation:portrait){#intro.overlay{grid-template-columns:1fr!important;grid-template-rows:minmax(170px,35vh) auto!important}#intro .art-area{min-height:170px;background-position:center 43%}#intro .art-area:after{background:linear-gradient(0deg,#061321,transparent 65%)}#intro .intro-card{padding:12px 20px 25px!important}#intro .menu-actions{gap:6px}#intro .menu-actions>button{min-height:42px}}
-@media(orientation:landscape) and (max-height:520px){#intro .intro-card{padding:8px 20px!important}#intro .intro-card h1{font-size:23px!important}#intro .menu-subtitle{display:none}#intro .intro-divider{margin:5px 0!important}#intro .menu-actions{gap:4px;margin-top:5px}#intro .menu-actions>button{min-height:32px!important;font-size:12px}#intro #load-info{font-size:10px;margin:4px 0}#intro .small-note{display:none}}
+#intro .menu-extra select,#intro .menu-extra input{width:100%!important;margin-top:6px!important}
+#intro .menu-extra select{background:#183751;color:#fff;padding:7px;border:1px solid #819baa;border-radius:7px}
 </style>
 </head>
 <body>
@@ -104,21 +102,22 @@ body:not(.patrulha-iniciada) #top-ui,body:not(.patrulha-iniciada) #mission,body:
       <p>Protótipo: as ações são demonstrações, sem dano aos cidadãos. Pistola: apenas teste no modo ajuste.</p>
     </div>
     <div id="intro" class="overlay">
-      <div class="art-area" role="img" aria-label="Tio Urso de óculos escuros ao lado da Fastback em Arapongas, com Igreja Matriz e praça ao pôr do sol"></div>
+      <div class="art-area" role="group" aria-label="Capa inteira do jogo Tio Urso: Patrulha, ambientada em Arapongas">
       <div class="intro-card">
         <h1>TIO URSO<span>PATRULHA</span></h1>
         <p class="menu-subtitle">AÇÃO, PATRULHAMENTO E PROTEÇÃO DE ARAPONGAS</p>
         <div class="intro-divider"></div>
         <small id="load-info">Preparando sua patrulha...</small>
         <div class="menu-actions">
-          <button id="start" type="button" disabled>NOVO JOGO</button>
-          <button id="continue-game" type="button" disabled>CONTINUAR</button>
-          <button id="menu-platform-button" type="button" aria-expanded="false" aria-controls="menu-platform-panel">PLATAFORMA</button>
-          <button id="menu-settings-button" type="button" aria-expanded="false" aria-controls="menu-settings-panel">CONFIGURAÇÕES</button>
+          <button id="start" aria-label="Novo Jogo" type="button" disabled>NOVO JOGO</button>
+          <button id="continue-game" aria-label="Continuar" type="button" disabled>CONTINUAR</button>
+          <button id="menu-platform-button" aria-label="Plataforma" type="button" aria-expanded="false" aria-controls="menu-platform-panel">PLATAFORMA</button>
+          <button id="menu-settings-button" aria-label="Configurações" type="button" aria-expanded="false" aria-controls="menu-settings-panel">CONFIGURAÇÕES</button>
         </div>
         <div id="menu-platform-panel" class="menu-extra" hidden><label for="platform-select">Escolha o tipo de controle</label><select id="platform-select"><option value="auto">Automático (recomendado)</option><option value="celular">Celular — toque e joystick</option><option value="pc">PC — teclado e mouse</option></select><small id="platform-state" style="display:block;margin-top:5px;color:#cad9e2"></small></div>
         <div id="menu-settings-panel" class="menu-extra" hidden><label for="menu-volume">🔊 Volume de efeitos</label><input id="menu-volume" type="range" min="0" max="100" value="70"/><small>O volume também pode ser alterado no painel de áudio durante o jogo.</small></div>
-        <p class="small-note">Salvamento no navegador deste dispositivo • Versão de menu 1.0.9</p>
+        <p class="small-note">Salvamento no navegador deste dispositivo • Versão de menu 1.0.10</p>
+      </div>
       </div>
     </div>
 
