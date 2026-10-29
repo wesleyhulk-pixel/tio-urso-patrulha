@@ -1,11 +1,11 @@
-TIO URSO: PATRULHA — EDITOR v1.0.22
+TIO URSO: PATRULHA v1.0.23 — PULO
 
-Atualização baseada no app.js da v1.0.21, com somente a coordenada alterada na exportação 5 como padrão do editor:
-map-1372 / TPX_Buildings_0: Y = -0.4398979748892238.
-Fastback e NPCs não foram movidos por esta atualização.
+Atualize APENAS app.js na raiz do GitHub. Nao altere index.html nem a capa aprovada.
 
-ENVIO GITHUB: substituir APENAS app.js. NÃO substituir index.html nem a capa.
-Se o navegador continuar com versão antiga, atualizar forçando recarga (Ctrl+Shift+R no PC).
-O arquivo ajustes_exportacao_5.json é um registro para backup; não é necessário enviá-lo ao GitHub.
+PC: Espaco = pular; clique esquerdo = acao (soco/tonfa/arma).
+Celular: botao PULAR (lado direito).
 
-AVISO: por ser um identificador de objeto criado em execução, map-1372 pode não identificar o mesmo prédio caso a estrutura do GLB seja alterada. O editor continua experimental e o terreno não é reconstruído.
+Salto simples por fisica, sem clip de animacao; o modelo permanece em pose de movimento no ar.
+Gravidade e deteccao do terreno incluidas. Teste experimental: validar saltos sobre ruas irregulares no dispositivo.
+
+Observacao: a configuracao do menu inicial nao foi alterada.

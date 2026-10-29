@@ -1949,6 +1949,18 @@ function applyStableFirearmAimPose(blend){
   rightForeArm.quaternion.slerp(aimFixedForearm,weight).normalize();
 }
 
+// v1.0.23 — salto independente do rig (sem tocar nas animações originais).
+const URSO_JUMP_SPEED=6.3, URSO_GRAVITY=17.5;
+let ursoJumpVelocity=0, ursoJumpActive=false;
+function ursoJump(){
+  if(!started || window.__ursoMouseControl?.isPaused?.() || ursoJumpActive || !player)return;
+  const floor=mapaTopoCarregado?surfaceHeight(player.position.x,player.position.z):GROUND_Y;
+  if(player.position.y>floor+0.18)return;
+  ursoJumpActive=true;
+  ursoJumpVelocity=URSO_JUMP_SPEED;
+  player.position.y=Math.max(player.position.y,floor)+0.025;
+}
+function ursoJumpReset(){ursoJumpActive=false;ursoJumpVelocity=0;}
 function update(dt){
   for(const m of ambientMixers)m.update(dt);
   let vx=joyX,vy=joyY;
@@ -2043,8 +2055,15 @@ function update(dt){
   // Não alteramos a orientação da tonfa a cada quadro: o osso da mão já faz isso.
   // A tonfa guardada e o coldre estão na raiz do modelo; o bastão equipado fica na mão.
   // O modelo permanece assentado no piso, sem salto artificial.
-  if(mapaTopoCarregado && (Math.floor(animationTime*10)%3===0)) player.position.y=surfaceHeight(player.position.x,player.position.z);
-  else if(!mapaTopoCarregado)player.position.y=GROUND_Y;
+  // Solo: a altura real é aplicada continuamente, mas nunca sobrescreve um salto ativo.
+  const ursoFloor=mapaTopoCarregado?surfaceHeight(player.position.x,player.position.z):GROUND_Y;
+  if(ursoJumpActive){
+    ursoJumpVelocity-=URSO_GRAVITY*dt;
+    player.position.y+=ursoJumpVelocity*dt;
+    if(player.position.y<=ursoFloor){player.position.y=ursoFloor;ursoJumpReset();}
+  } else {
+    player.position.y=ursoFloor;
+  }
   if(characterModel){characterModel.position.y=modelBaseY;characterModel.rotation.z=Math.sin(animationTime)*walkBlend*.008;}
   // A sombra suave fica sob o quadril efetivo (inclusive nas animações com
   // deslocamento do root/hips); a sombra de luz acompanha a malha em tempo real.
@@ -2140,6 +2159,19 @@ function loop(){
   if(++movementDebugFrames%12===0)movementDebug();
 }
 function installControls(){
+  // Botão extra para celular; não modifica o botão de Ação já calibrado.
+  if(!document.getElementById('urso-pular-btn')){
+    const jumpButton=document.createElement('button');
+    jumpButton.id='urso-pular-btn';jumpButton.type='button';jumpButton.textContent='⬆ PULAR';
+    jumpButton.setAttribute('aria-label','Pular');
+    jumpButton.style.cssText='position:fixed;right:14px;bottom:175px;z-index:75;padding:13px 17px;border-radius:32px;background:rgba(12,44,67,.86);color:#fff;border:2px solid #efc974;font:bold 14px system-ui;touch-action:manipulation;user-select:none;display:none';
+    const trigger=e=>{e.preventDefault();e.stopPropagation();ursoJump()};
+    jumpButton.addEventListener('pointerdown',trigger);
+    document.body.appendChild(jumpButton);
+    const updateButton=()=>{jumpButton.style.display=started && document.body.classList.contains('patrulha-iniciada') && !document.body.classList.contains('desktop-control')?'block':'none'};
+    new MutationObserver(updateButton).observe(document.body,{attributes:true,attributeFilter:['class']});
+    updateButton();
+  }
   const stick=el('stick'),zone=el('joystick');let activePointer=null;
   function updateAutoRunFromStick(){
     const pressure=Math.min(1,Math.hypot(joyX,joyY));
@@ -2189,7 +2221,7 @@ function installControls(){
     el('equip-firearm').disabled=false;
     el('equip-firearm').querySelector('small').textContent='🧪 TESTE VISUAL • sem disparos';
   }
-  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space')doAction();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;if(e.code==='KeyF')setAiming(!aiming);});
+  window.addEventListener('keydown',e=>{pressedKeys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyE')interact();if(e.code==='Space'&&!e.repeat)ursoJump();if(e.code==='KeyQ')el('equipment-panel').hidden=!el('equipment-panel').hidden;if(e.code==='KeyF')setAiming(!aiming);});
   window.addEventListener('keyup',e=>pressedKeys.delete(e.code));
   window.addEventListener('blur',()=>{pressedKeys.clear();runHeld=false;clearStick();});
   // Arrastar sobre o cenário muda a câmera. Joystick/botões não interferem.
