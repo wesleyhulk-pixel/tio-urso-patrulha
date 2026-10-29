@@ -175,14 +175,14 @@ const audioSlider=document.getElementById('audio-volume');
 if(audioSlider){slider.value=audioSlider.value;slider.addEventListener('input',()=>{audioSlider.value=slider.value;audioSlider.dispatchEvent(new Event('input',{bubbles:true}));audioSlider.dispatchEvent(new Event('change',{bubbles:true}));});}
 })();
 </script>
-<script id="menu-calibration-v115">
+<script id="menu-calibration-v116">
 (()=>{
  const root=document.getElementById('intro'), editor=document.getElementById('menu-calibration');
  if(!root||!editor)return;
  const ids=['start','continue-game','menu-platform-button','menu-settings-button'];
  const labels=['NOVO JOGO','CONTINUAR','PLATAFORMA','CONFIGURAÇÕES'];
- const key='tio-urso-menu-hitboxes-v115';
- const defaults=[{x:67.6,y:56.3,w:26.3,h:7.06},{x:67.6,y:66.07,w:26.3,h:7.06},{x:67.6,y:75.85,w:26.3,h:7.06},{x:67.6,y:85.62,w:26.3,h:7.06}];
+ const key='tio-urso-menu-hitboxes-v116';
+ const defaults=[{x:77.13125,y:55.8609220636663,w:19.89375,h:7.499077936333699},{x:77.18333333333332,y:64.42345773874862,w:19.997916666666665,h:7.828386388583973},{x:77.13125,y:73.2155323819978,w:20.102083333333333,h:7.718616904500549},{x:77.07916666666667,y:81.88783754116356,w:20.05,h:7.828386388583973}];
  let rects=defaults.map(r=>({...r}));
  try{const v=JSON.parse(localStorage.getItem(key));if(Array.isArray(v)&&v.length===4&&v.every(r=>['x','y','w','h'].every(k=>Number.isFinite(r[k]))))rects=v;}catch{}
  const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));

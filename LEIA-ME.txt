@@ -1,1 +1,5 @@
-Tio Urso: menu v1.0.15. Substituir SOMENTE index.html. Abra ?ajustebotoes=1; arraste os retângulos e ajuste pelo quadradinho do canto. Salvar e testar. Copiar coordenadas para enviar no chat. Os ajustes persistem neste navegador. Não altera app.js nem a capa.
+Tio Urso: Patrulha - Menu v1.0.16
+Substitua somente index.html na raiz do repositorio GitHub.
+Quatro areas clicaveis fixadas exatamente conforme JSON fornecido.
+Nao altere app.js nem arquivos 3D, CSS ou imagens.
+O calibrador continua disponivel para ajustes adicionais.
