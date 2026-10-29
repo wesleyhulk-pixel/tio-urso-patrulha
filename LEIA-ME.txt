@@ -1,4 +1,15 @@
-Tio Urso: Patrulha — Menu v1.0.11
-Corrige a arte: imagem original horizontal 1672x941, não a capa quase quadrada da versão anterior.
-Enviar index.html e capa-arapongas-wide.webp à raiz do GitHub. Não alterar app.js.
-A imagem preserva seus quatro botões desenhados; áreas invisíveis clicáveis foram alinhadas.
+TIO URSO: PATRULHA — Correção do MENU v1.0.12
+
+1. Extraia este ZIP.
+2. No GitHub, substitua index.html e capa-arapongas-wide.webp.
+3. NÃO altere o app.js nem exclua os outros arquivos.
+4. Abra ?v=menu112 após o GitHub Pages publicar.
+
+Correções:
+- Novo Jogo e Continuar agora podem ocultar o menu: CSS display:none supera o display:flex !important antigo.
+- A arte APROVADA é a mesma, sem nenhuma imagem nova.
+- Áreas de clique ajustadas aos quatro botões ilustrados.
+- Painel de coordenadas e texto de carregamento ocultados na capa.
+- Fundo ambientado preenche as laterais sem faixas pretas, enquanto a arte principal é preservada integralmente.
+
+Nota: em telas com proporção diferente da imagem 16:9, pode aparecer fundo desfocado nas margens, não barras pretas. O menu precisa ser testado em seu dispositivo.
