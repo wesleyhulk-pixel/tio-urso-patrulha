@@ -2371,8 +2371,12 @@ try{
 
 // ===== TIO URSO: EDITOR DE CENÁRIO v1.0.19 (opcional, não altera menu) =====
 (function setupSceneEditor119(){
- const SAVE='tio-urso-editor-v119';
- let saved={};try{saved=JSON.parse(localStorage.getItem(SAVE)||'{}')||{}}catch{}
+ const SAVE='tio-urso-editor-v122';
+ // Último JSON enviado pelo usuário, exportação 5: apenas TPX_Buildings_0 alterado.
+ // Não aplicar coordenadas da Fastback ou NPCs como novos padrões, pois podem ser originais.
+ const approvedPreset={'map-1372':{x:0,y:-0.4398979748892238,z:0,ry:0,scale:1}};
+ let saved={...approvedPreset};
+ try{const prior=JSON.parse(localStorage.getItem(SAVE)||'null');if(prior&&typeof prior==='object')saved={...saved,...prior}}catch{}
  const refs=new Map();let selected='',step=.25,editing=false,outline=null;
  const css=document.createElement('style');css.textContent=`
  #edit119-open{position:fixed;bottom:12px;left:12px;z-index:890;background:#142d45;color:#fff;border:1px solid #d7ab50;border-radius:9px;padding:8px;font:600 12px system-ui;display:none}

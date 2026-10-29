@@ -1,1 +1,11 @@
-Tio Urso: Patrulha v1.0.21 — PC: clique esquerdo aciona soco/tonfa/tiro conforme equipamento e regras existentes; clique direito libera cursor, clique esquerdo no cenario volta a prender; ESC continua pausando. F8 abre editor. Atualize somente app.js, preservando index.html do menu v1.0.18.
+TIO URSO: PATRULHA — EDITOR v1.0.22
+
+Atualização baseada no app.js da v1.0.21, com somente a coordenada alterada na exportação 5 como padrão do editor:
+map-1372 / TPX_Buildings_0: Y = -0.4398979748892238.
+Fastback e NPCs não foram movidos por esta atualização.
+
+ENVIO GITHUB: substituir APENAS app.js. NÃO substituir index.html nem a capa.
+Se o navegador continuar com versão antiga, atualizar forçando recarga (Ctrl+Shift+R no PC).
+O arquivo ajustes_exportacao_5.json é um registro para backup; não é necessário enviá-lo ao GitHub.
+
+AVISO: por ser um identificador de objeto criado em execução, map-1372 pode não identificar o mesmo prédio caso a estrutura do GLB seja alterada. O editor continua experimental e o terreno não é reconstruído.

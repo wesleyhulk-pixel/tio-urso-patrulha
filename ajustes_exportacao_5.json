@@ -1,0 +1,598 @@
+{
+  "source": "topoexport-71F678",
+  "editor": "v1.0.19",
+  "items": {
+    "fastback": {
+      "name": "Fastback GM",
+      "x": -169.07833609668106,
+      "y": 26.293210752339345,
+      "z": -201.52117736475878,
+      "ry": 0,
+      "scale": 1.1576250000000001
+    },
+    "npc-0": {
+      "name": "Cidadão 1",
+      "x": -171.10925643316358,
+      "y": 25.908195361109332,
+      "z": -197.423232659181,
+      "ry": 0,
+      "scale": 1
+    },
+    "npc-1": {
+      "name": "Cidadão 2",
+      "x": -182.10925643316358,
+      "y": 24.82691081607396,
+      "z": -192.423232659181,
+      "ry": 0,
+      "scale": 1
+    },
+    "npc-2": {
+      "name": "Cidadão 3",
+      "x": -167.10925643316358,
+      "y": 27.14968719592292,
+      "z": -218.423232659181,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1372": {
+      "name": "Prédio · TPX_Buildings_0",
+      "x": 0,
+      "y": -0.4398979748892238,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1373": {
+      "name": "Prédio · TPX_Buildings_1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1374": {
+      "name": "Prédio · TPX_Buildings_2",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1375": {
+      "name": "Prédio · TPX_Buildings_3",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1376": {
+      "name": "Prédio · TPX_Buildings_4",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1377": {
+      "name": "Prédio · TPX_Buildings_5",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1378": {
+      "name": "Prédio · TPX_Buildings_6",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1379": {
+      "name": "Prédio · TPX_Buildings_7",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1380": {
+      "name": "Prédio · TPX_Buildings_8",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1381": {
+      "name": "Prédio · TPX_Buildings_9",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1382": {
+      "name": "Prédio · TPX_Buildings_10",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1383": {
+      "name": "Prédio · TPX_Buildings_11",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1384": {
+      "name": "Prédio · TPX_Buildings_12",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1385": {
+      "name": "Prédio · TPX_Buildings_13",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1386": {
+      "name": "Prédio · TPX_Buildings_14",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1387": {
+      "name": "Prédio · TPX_Buildings_15",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1388": {
+      "name": "Prédio · TPX_Buildings_16",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1389": {
+      "name": "Prédio · TPX_Buildings_17",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1390": {
+      "name": "Prédio · TPX_Buildings_18",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1391": {
+      "name": "Prédio · TPX_Buildings_19",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1392": {
+      "name": "Prédio · TPX_Buildings_20",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1393": {
+      "name": "Prédio · TPX_Buildings_21",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1394": {
+      "name": "Prédio · TPX_Buildings_22",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1395": {
+      "name": "Prédio · TPX_Buildings_23",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1396": {
+      "name": "Prédio · TPX_Buildings_24",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1397": {
+      "name": "Prédio · TPX_Buildings_25",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1398": {
+      "name": "Prédio · TPX_Buildings_26",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1399": {
+      "name": "Prédio · TPX_Buildings_27",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1400": {
+      "name": "Prédio · TPX_Buildings_28",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1401": {
+      "name": "Prédio · TPX_Buildings_29",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1402": {
+      "name": "Prédio · TPX_Buildings_30",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1403": {
+      "name": "Prédio · TPX_Buildings_31",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1404": {
+      "name": "Prédio · TPX_Buildings_32",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1405": {
+      "name": "Prédio · TPX_Buildings_33",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1406": {
+      "name": "Prédio · TPX_Buildings_34",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1407": {
+      "name": "Prédio · TPX_Buildings_35",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1408": {
+      "name": "Prédio · TPX_Buildings_36",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1409": {
+      "name": "Prédio · TPX_Buildings_37",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1410": {
+      "name": "Prédio · TPX_Buildings_38",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1411": {
+      "name": "Prédio · TPX_Buildings_39",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1412": {
+      "name": "Prédio · TPX_Buildings_40",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1413": {
+      "name": "Prédio · TPX_Buildings_41",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1414": {
+      "name": "Prédio · TPX_Buildings_42",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1415": {
+      "name": "Prédio · TPX_Buildings_43",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1416": {
+      "name": "Prédio · TPX_Buildings_44",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1417": {
+      "name": "Prédio · TPX_Buildings_45",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1418": {
+      "name": "Prédio · TPX_Buildings_46",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1419": {
+      "name": "Prédio · TPX_Buildings_47",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1420": {
+      "name": "Prédio · TPX_Buildings_48",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1421": {
+      "name": "Prédio · TPX_Buildings_49",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1422": {
+      "name": "Prédio · TPX_Buildings_50",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1423": {
+      "name": "Prédio · TPX_Buildings_51",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1424": {
+      "name": "Prédio · TPX_Buildings_52",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1425": {
+      "name": "Prédio · TPX_Buildings_53",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1426": {
+      "name": "Prédio · TPX_Buildings_54",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1427": {
+      "name": "Prédio · TPX_Buildings_55",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1428": {
+      "name": "Prédio · TPX_Buildings_56",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1429": {
+      "name": "Prédio · TPX_Buildings_57",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1430": {
+      "name": "Prédio · TPX_Buildings_58",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1431": {
+      "name": "Prédio · TPX_Buildings_59",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1432": {
+      "name": "Prédio · TPX_Buildings_60",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1433": {
+      "name": "Prédio · TPX_Buildings_61",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1434": {
+      "name": "Prédio · TPX_Buildings_62",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1435": {
+      "name": "Prédio · TPX_Buildings_63",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1436": {
+      "name": "Prédio · TPX_Buildings_64",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1437": {
+      "name": "Prédio · TPX_Buildings_65",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1438": {
+      "name": "Prédio · TPX_Buildings_66",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1439": {
+      "name": "Prédio · TPX_Buildings_67",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1440": {
+      "name": "Prédio · TPX_Buildings_68",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    },
+    "map-1441": {
+      "name": "Prédio · TPX_Buildings_69",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "ry": 0,
+      "scale": 1
+    }
+  }
+}
