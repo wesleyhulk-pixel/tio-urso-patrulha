@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081a2d" />
   <meta name="description" content="Tio Urso: Patrulha — protótipo 3D para celular" />
-  <title>Tio Urso: Patrulha | Menu v1.0.14 — Tio Urso: Patrulha</title>
+  <title>Tio Urso: Patrulha | Menu v1.0.17</title>
   <link rel="manifest" href="./manifest.webmanifest?v=100" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
@@ -55,21 +55,28 @@ body.patrulha-iniciada #intro.overlay,#intro.overlay[hidden],#intro.overlay[styl
 #intro.overlay:not([hidden]):not([style*="display: none"]) .art-area{max-width:100vw}
 </style>
 
-<style id="menu-hit-calibration-css">
-#intro .menu-actions{inset:0!important;width:100%!important;height:100%!important;position:absolute!important;pointer-events:none!important}
-#intro .menu-actions>button{position:absolute!important;pointer-events:auto!important;inset:auto!important;min-height:0!important;transform:none!important}
+
+<style id="menu117-css">
+/* Todos os retângulos (clique e calibração) dividem o mesmo plano: #intro. */
+#intro.overlay{position:fixed!important;inset:0!important;box-sizing:border-box!important;overflow:hidden!important}
+#intro>.menu-actions{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;transform:none!important;margin:0!important;padding:0!important;display:block!important;pointer-events:none!important;z-index:1102!important}
+#intro>.menu-actions>button{position:absolute!important;box-sizing:border-box!important;inset:auto!important;min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important;background:transparent!important;color:transparent!important;font-size:0!important;line-height:0!important;border-radius:4px!important;transform:none!important;pointer-events:auto!important;touch-action:manipulation!important;opacity:1!important;outline:0!important}
+#intro>.menu-actions>button:hover{background:rgba(255,210,92,.13)!important}
+#intro>.menu-actions>button:focus-visible{outline:2px solid #ffd36d!important}
+#intro>.menu-actions>button:disabled{pointer-events:none!important;cursor:default!important}
+#intro>.menu-actions.debug-buttons>button:not(:disabled){outline:2px solid #2df9ab!important;background:rgba(45,249,171,.16)!important}
 #menu-calibrate-toggle{position:absolute;bottom:10px;right:12px;z-index:1105;background:#061c2cdb;color:#fff;border:1px solid #e7bf64;border-radius:8px;padding:7px 11px;font:600 12px system-ui;cursor:pointer;pointer-events:auto;touch-action:manipulation}
-#menu-calibration{position:absolute;inset:0;z-index:1103;pointer-events:none;display:none;font-family:system-ui}
+#menu-calibration{position:absolute;inset:0;z-index:1104;pointer-events:none;display:none;font-family:system-ui}
 #menu-calibration.active{display:block}
 #menu-calibration .hotbox{position:absolute;box-sizing:border-box;border:2px solid #ffda68;background:#ffca324a;border-radius:6px;pointer-events:auto;cursor:move;touch-action:none;user-select:none;color:#fff;font:bold 12px system-ui;text-shadow:0 1px 3px #000;display:flex;align-items:center;justify-content:center}
-#menu-calibration .hotbox:nth-child(2){border-color:#54e8fb;background:#1bc7e44a}
-#menu-calibration .hotbox:nth-child(3){border-color:#fb85a2;background:#f145794a}
-#menu-calibration .hotbox:nth-child(4){border-color:#a9fb89;background:#46c54b4a}
-#menu-calibration .handle{position:absolute;right:-7px;bottom:-7px;width:18px;height:18px;border:2px solid white;background:#0c233b;border-radius:4px;cursor:nwse-resize;touch-action:none}
+#menu-calibration .hotbox:nth-of-type(2){border-color:#54e8fb;background:#1bc7e44a}
+#menu-calibration .hotbox:nth-of-type(3){border-color:#fb85a2;background:#f145794a}
+#menu-calibration .hotbox:nth-of-type(4){border-color:#a9fb89;background:#46c54b4a}
+#menu-calibration .handle{position:absolute;right:-7px;bottom:-7px;width:18px;height:18px;border:2px solid white;background:#0c233b;border-radius:4px;touch-action:none}
 #menu-calibration .toolbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:96%;pointer-events:auto;background:#08192ce8;padding:8px;border-radius:9px;border:1px solid #e7bf64}
 #menu-calibration .toolbar button{color:white;background:#17445c;border:1px solid #8fb5c3;border-radius:6px;padding:7px;font:600 12px system-ui;cursor:pointer}
 #menu-calibration .hint{position:absolute;left:8px;bottom:11px;color:white;background:#08192ccb;padding:5px 9px;border-radius:6px;font:11px system-ui;pointer-events:none;max-width:65%}
-#menu-calibration.active~#menu-calibrate-toggle{background:#b27308}
+#intro>.menu-actions{isolation:isolate}
 </style>
 </head>
 <body>
@@ -131,17 +138,18 @@ body.patrulha-iniciada #intro.overlay,#intro.overlay[hidden],#intro.overlay[styl
         <p class="menu-subtitle">AÇÃO, PATRULHAMENTO E PROTEÇÃO DE ARAPONGAS</p>
         <div class="intro-divider"></div>
         <small id="load-info">Preparando sua patrulha...</small>
-        <div class="menu-actions">
-          <button id="start" aria-label="Novo Jogo" type="button" disabled>NOVO JOGO</button>
-          <button id="continue-game" aria-label="Continuar" type="button" disabled>CONTINUAR</button>
-          <button id="menu-platform-button" aria-label="Plataforma" type="button" aria-expanded="false" aria-controls="menu-platform-panel">PLATAFORMA</button>
-          <button id="menu-settings-button" aria-label="Configurações" type="button" aria-expanded="false" aria-controls="menu-settings-panel">CONFIGURAÇÕES</button>
-        </div>
+
         <div id="menu-platform-panel" class="menu-extra" hidden><label for="platform-select">Escolha o tipo de controle</label><select id="platform-select"><option value="auto">Automático (recomendado)</option><option value="celular">Celular — toque e joystick</option><option value="pc">PC — teclado e mouse</option></select><small id="platform-state" style="display:block;margin-top:5px;color:#cad9e2"></small></div>
         <div id="menu-settings-panel" class="menu-extra" hidden><label for="menu-volume">🔊 Volume de efeitos</label><input id="menu-volume" type="range" min="0" max="100" value="70"/><small>O volume também pode ser alterado no painel de áudio durante o jogo.</small></div>
         <p class="small-note">Salvamento no navegador deste dispositivo • Menu com calibração 1.0.15</p>
       </div>
       </div>
+      <div class="menu-actions">
+          <button id="start" aria-label="Novo Jogo" type="button" disabled>NOVO JOGO</button>
+          <button id="continue-game" aria-label="Continuar" type="button" disabled>CONTINUAR</button>
+          <button id="menu-platform-button" aria-label="Plataforma" type="button" aria-expanded="false" aria-controls="menu-platform-panel">PLATAFORMA</button>
+          <button id="menu-settings-button" aria-label="Configurações" type="button" aria-expanded="false" aria-controls="menu-settings-panel">CONFIGURAÇÕES</button>
+        </div>
       <div id="menu-calibration" aria-label="Calibrador de áreas clicáveis">
         <div class="toolbar"><button type="button" id="cal-save">Salvar e testar</button><button type="button" id="cal-copy">Copiar coordenadas</button><button type="button" id="cal-reset">Restaurar</button><button type="button" id="cal-close">Fechar</button></div>
         <div class="hint">Arraste o retângulo pelo centro; arraste o quadradinho do canto para redimensionar.</div>
@@ -175,51 +183,38 @@ const audioSlider=document.getElementById('audio-volume');
 if(audioSlider){slider.value=audioSlider.value;slider.addEventListener('input',()=>{audioSlider.value=slider.value;audioSlider.dispatchEvent(new Event('input',{bubbles:true}));audioSlider.dispatchEvent(new Event('change',{bubbles:true}));});}
 })();
 </script>
-<script id="menu-calibration-v116">
+
+<script id="menu-calibration-v117">
 (()=>{
  const root=document.getElementById('intro'), editor=document.getElementById('menu-calibration');
- if(!root||!editor)return;
+ const actions=root?.querySelector(':scope > .menu-actions');
+ if(!root||!editor||!actions)return;
  const ids=['start','continue-game','menu-platform-button','menu-settings-button'];
  const labels=['NOVO JOGO','CONTINUAR','PLATAFORMA','CONFIGURAÇÕES'];
- const key='tio-urso-menu-hitboxes-v116';
+ // Chave nova: desconsidera calibrações antigas feitas em outro sistema de coordenadas.
+ const key='tio-urso-menu-viewport-v117';
  const defaults=[{x:77.13125,y:55.8609220636663,w:19.89375,h:7.499077936333699},{x:77.18333333333332,y:64.42345773874862,w:19.997916666666665,h:7.828386388583973},{x:77.13125,y:73.2155323819978,w:20.102083333333333,h:7.718616904500549},{x:77.07916666666667,y:81.88783754116356,w:20.05,h:7.828386388583973}];
  let rects=defaults.map(r=>({...r}));
  try{const v=JSON.parse(localStorage.getItem(key));if(Array.isArray(v)&&v.length===4&&v.every(r=>['x','y','w','h'].every(k=>Number.isFinite(r[k]))))rects=v;}catch{}
  const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
  const save=()=>{try{localStorage.setItem(key,JSON.stringify(rects))}catch{}};
- function apply(){
-   rects.forEach((r,i)=>{
-     const b=document.getElementById(ids[i]);if(!b)return;
-     [['left',r.x+'%'],['top',r.y+'%'],['width',r.w+'%'],['height',r.h+'%']].forEach(([a,v])=>b.style.setProperty(a,v,'important'));
-     b.style.setProperty('right','auto','important');b.style.setProperty('bottom','auto','important');
-   });
- }
+ function apply(){rects.forEach((r,i)=>{const b=document.getElementById(ids[i]);if(!b)return;for(const [a,v] of Object.entries({left:r.x+'%',top:r.y+'%',width:r.w+'%',height:r.h+'%'}))b.style.setProperty(a,v,'important');b.style.setProperty('right','auto','important');b.style.setProperty('bottom','auto','important');});}
  const boxes=rects.map((r,i)=>{
-   const div=document.createElement('div');div.className='hotbox';div.textContent=labels[i];div.setAttribute('role','group');div.setAttribute('aria-label','Área '+labels[i]);
-   const handle=document.createElement('span');handle.className='handle';handle.title='Redimensionar';div.appendChild(handle);editor.appendChild(div);
-   const paint=()=>{const q=rects[i];div.style.left=q.x+'%';div.style.top=q.y+'%';div.style.width=q.w+'%';div.style.height=q.h+'%';};
-   div.addEventListener('pointerdown',e=>{
-     if(e.button!==0)return;e.preventDefault();e.stopPropagation();
-     const resize=e.target===handle;const base={...rects[i]},initialX=e.clientX,initialY=e.clientY;
-     div.setPointerCapture(e.pointerId);
-     const move=ev=>{
-       const bound=root.getBoundingClientRect();const dx=(ev.clientX-initialX)*100/bound.width,dy=(ev.clientY-initialY)*100/bound.height;
-       if(resize){rects[i].w=clamp(base.w+dx,5,100-base.x);rects[i].h=clamp(base.h+dy,3,100-base.y)}
-       else{rects[i].x=clamp(base.x+dx,0,100-base.w);rects[i].y=clamp(base.y+dy,0,100-base.h)}
-       paint();apply();save();
-     };
-     const up=()=>{div.removeEventListener('pointermove',move);div.removeEventListener('pointerup',up);div.removeEventListener('pointercancel',up);save();};
-     div.addEventListener('pointermove',move);div.addEventListener('pointerup',up);div.addEventListener('pointercancel',up);
-   });
-   paint();return {div,paint};
+  const div=document.createElement('div');div.className='hotbox';div.setAttribute('aria-label','Área '+labels[i]);div.append(document.createTextNode(labels[i]));
+  const handle=document.createElement('span');handle.className='handle';div.appendChild(handle);editor.appendChild(div);
+  const paint=()=>{const q=rects[i];Object.assign(div.style,{left:q.x+'%',top:q.y+'%',width:q.w+'%',height:q.h+'%'});};
+  div.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();e.stopPropagation();const resize=e.target===handle,base={...rects[i]},ix=e.clientX,iy=e.clientY;div.setPointerCapture(e.pointerId);
+   const move=ev=>{const bound=root.getBoundingClientRect(),dx=(ev.clientX-ix)*100/bound.width,dy=(ev.clientY-iy)*100/bound.height;if(resize){rects[i].w=clamp(base.w+dx,5,100-base.x);rects[i].h=clamp(base.h+dy,3,100-base.y)}else{rects[i].x=clamp(base.x+dx,0,100-base.w);rects[i].y=clamp(base.y+dy,0,100-base.h)}paint();apply();};
+   const up=()=>{div.removeEventListener('pointermove',move);div.removeEventListener('pointerup',up);div.removeEventListener('pointercancel',up);save();};div.addEventListener('pointermove',move);div.addEventListener('pointerup',up);div.addEventListener('pointercancel',up);
+  });paint();return {div,paint};
  });
  const toggle=document.getElementById('menu-calibrate-toggle');
- function activate(on){editor.classList.toggle('active',on);toggle.textContent=on?'✓ Ajustando cliques':'🎯 Ajustar cliques'; const actions=document.querySelector('#intro .menu-actions');if(actions)actions.style.pointerEvents=on?'none':''; ids.forEach(id=>{const b=document.getElementById(id);if(b)b.style.setProperty('pointer-events',on?'none':'auto','important')});}
+ function activate(on){editor.classList.toggle('active',on);actions.classList.toggle('debug-buttons',on);toggle.textContent=on?'✓ Ajustando cliques':'🎯 Ajustar cliques';ids.forEach(id=>{const b=document.getElementById(id);if(b)b.style.setProperty('pointer-events',on?'none':'auto','important')});}
  toggle.addEventListener('click',()=>activate(!editor.classList.contains('active')));
  document.getElementById('cal-close').addEventListener('click',()=>activate(false));
  document.getElementById('cal-save').addEventListener('click',()=>{apply();save();activate(false)});
  document.getElementById('cal-reset').addEventListener('click',()=>{rects=defaults.map(r=>({...r}));boxes.forEach(b=>b.paint());apply();save()});
- document.getElementById('cal-copy').addEventListener('click',async()=>{const t=JSON.stringify({menuBotoes:{novo:rects[0],continuar:rects[1],plataforma:rects[2],configuracoes:rects[3]}},null,2);try{await navigator.clipboard.writeText(t);alert('Coordenadas copiadas! Cole no ChatGPT.')}catch{prompt('Copie as coordenadas:',t)}});
+ document.getElementById('cal-copy').addEventListener('click',async()=>{const t=JSON.stringify({menuBotoes:{novo:rects[0],continuar:rects[1],plataforma:rects[2],configuracoes:rects[3]}},null,2);try{await navigator.clipboard.writeText(t);alert('Coordenadas copiadas!')}catch{prompt('Copie as coordenadas:',t)}});
  apply();if(new URLSearchParams(location.search).get('ajustebotoes')==='1')activate(true);
 })();
 </script>

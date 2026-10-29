@@ -1,5 +1,9 @@
-Tio Urso: Patrulha - Menu v1.0.16
-Substitua somente index.html na raiz do repositorio GitHub.
-Quatro areas clicaveis fixadas exatamente conforme JSON fornecido.
-Nao altere app.js nem arquivos 3D, CSS ou imagens.
-O calibrador continua disponivel para ajustes adicionais.
+TIO URSO: PATRULHA — CORREÇÃO v1.0.17
+
+Substitua somente index.html no repositório. A arte e o app.js não mudam.
+
+As quatro áreas clicáveis agora são filhas diretas de #intro, assim como o calibrador; uma nova chave de armazenamento elimina calibrações antigas incompatíveis.
+
+Abra ?ajustebotoes=1&v=117 para visualizar os retângulos de teste.
+
+Não modifica o mapa nem a movimentação.
