@@ -56,7 +56,7 @@ body.patrulha-iniciada #intro.overlay,#intro.overlay[hidden],#intro.overlay[styl
 </style>
 
 
-<style id="menu117-css">
+<style id="menu118-css">
 /* Todos os retângulos (clique e calibração) dividem o mesmo plano: #intro. */
 #intro.overlay{position:fixed!important;inset:0!important;box-sizing:border-box!important;overflow:hidden!important}
 #intro>.menu-actions{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;transform:none!important;margin:0!important;padding:0!important;display:block!important;pointer-events:none!important;z-index:1102!important}
@@ -184,7 +184,7 @@ if(audioSlider){slider.value=audioSlider.value;slider.addEventListener('input',(
 })();
 </script>
 
-<script id="menu-calibration-v117">
+<script id="menu-calibration-v118">
 (()=>{
  const root=document.getElementById('intro'), editor=document.getElementById('menu-calibration');
  const actions=root?.querySelector(':scope > .menu-actions');
@@ -192,8 +192,8 @@ if(audioSlider){slider.value=audioSlider.value;slider.addEventListener('input',(
  const ids=['start','continue-game','menu-platform-button','menu-settings-button'];
  const labels=['NOVO JOGO','CONTINUAR','PLATAFORMA','CONFIGURAÇÕES'];
  // Chave nova: desconsidera calibrações antigas feitas em outro sistema de coordenadas.
- const key='tio-urso-menu-viewport-v117';
- const defaults=[{x:77.13125,y:55.8609220636663,w:19.89375,h:7.499077936333699},{x:77.18333333333332,y:64.42345773874862,w:19.997916666666665,h:7.828386388583973},{x:77.13125,y:73.2155323819978,w:20.102083333333333,h:7.718616904500549},{x:77.07916666666667,y:81.88783754116356,w:20.05,h:7.828386388583973}];
+ const key='tio-urso-menu-viewport-v118';
+ const defaults=[{x:77.07916666666667,y:55.8609220636663,w:19.89375,h:7.499077936333699},{x:77.02708333333332,y:64.53322722283205,w:19.997916666666665,h:7.828386388583973},{x:77.18333333333332,y:73.32530186608122,w:20.102083333333333,h:7.718616904500549},{x:77.13125000000001,y:81.88783754116356,w:20.05,h:7.828386388583973}];
  let rects=defaults.map(r=>({...r}));
  try{const v=JSON.parse(localStorage.getItem(key));if(Array.isArray(v)&&v.length===4&&v.every(r=>['x','y','w','h'].every(k=>Number.isFinite(r[k]))))rects=v;}catch{}
  const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
